@@ -371,8 +371,8 @@
 <body>
     <div class="header">
         <div>
-            <h1>📈 K线一键下单演示 - BTC/USDT</h1>
-            <p style="font-size: 11px; color: #9ca3b0; margin: 4px 0 0 0;">🖱️ 左键=买入 | 右键=卖出</p>
+            <h1>📈 K线一键下单演示 - BTC-USD (Hyperliquid)</h1>
+            <p style="font-size: 11px; color: #9ca3b0; margin: 4px 0 0 0;">🖱️ 左键=买入 | 右键=卖出 | 全球可访问</p>
         </div>
         
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -392,9 +392,8 @@
         </div>
         
         <select id="exchangeSelector" style="background: #1e222d; border: 1px solid #363c4e; color: #d1d4dc; border-radius: 3px; padding: 6px 10px; font-size: 11px;">
+            <option value="hyperliquid">Hyperliquid（全球可访问）</option>
             <option value="binance">币安 Binance</option>
-            <option value="okx">OKX</option>
-            <option value="bitget">Bitget</option>
         </select>
     </div>
 
@@ -479,7 +478,7 @@
         let positions = [];
         let orderIdCounter = 1;
         let positionIdCounter = 1;
-        let currentExchange = 'binance';
+        let currentExchange = 'hyperliquid';
         let wsConnection = null;
         
         // K线图上的价格线
@@ -487,23 +486,17 @@
         
         // API配置
         const API_CONFIG = {
+            hyperliquid: {
+                name: 'Hyperliquid',
+                rest: 'https://api.hyperliquid.xyz/info',
+                ws: 'wss://api.hyperliquid.xyz/ws',
+                coin: 'BTC'
+            },
             binance: {
                 name: '币安',
                 kline: 'https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&limit=500',
                 price: 'https://fapi.binance.com/fapi/v1/ticker/price?symbol=BTCUSDT',
                 ws: 'wss://fstream.binance.com/ws/btcusdt@kline_1m'
-            },
-            okx: {
-                name: 'OKX',
-                kline: 'https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=1m&limit=500',
-                price: 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP',
-                ws: 'wss://ws.okx.com:8443/ws/v5/public'
-            },
-            bitget: {
-                name: 'Bitget',
-                kline: 'https://api.bitget.com/api/mix/v1/market/candles?symbol=BTCUSDT_UMCBL&granularity=1m&limit=500',
-                price: 'https://api.bitget.com/api/mix/v1/market/ticker?symbol=BTCUSDT_UMCBL',
-                ws: null // Bitget使用轮询
             }
         };
 
@@ -598,31 +591,44 @@
                 const config = API_CONFIG[currentExchange];
                 addLog(`正在从${config.name}加载K线数据...`, 'info');
                 
-                const response = await fetch(config.kline);
-                const data = await response.json();
-                
                 let klineData;
                 
-                if (currentExchange === 'binance') {
+                if (currentExchange === 'hyperliquid') {
+                    // Hyperliquid REST API
+                    const now = Date.now();
+                    const startTime = now - (500 * 60 * 1000); // 500分钟前
+                    
+                    const payload = {
+                        type: 'candleSnapshot',
+                        req: {
+                            coin: config.coin,
+                            interval: '1m',
+                            startTime: startTime,
+                            endTime: now
+                        }
+                    };
+                    
+                    const response = await fetch(config.rest, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Hyperliquid 返回格式: [{t: timestamp_ms, o: "67234.0", ...}]
                     klineData = data.map(item => ({
-                        time: parseInt(item[0]) / 1000,
-                        open: parseFloat(item[1]),
-                        high: parseFloat(item[2]),
-                        low: parseFloat(item[3]),
-                        close: parseFloat(item[4]),
+                        time: parseInt(item.t) / 1000,
+                        open: parseFloat(item.o),
+                        high: parseFloat(item.h),
+                        low: parseFloat(item.l),
+                        close: parseFloat(item.c),
                     }));
-                } else if (currentExchange === 'okx') {
-                    // OKX返回格式: [ts, o, h, l, c, vol, volCcy]
-                    klineData = data.data.map(item => ({
-                        time: parseInt(item[0]) / 1000,
-                        open: parseFloat(item[1]),
-                        high: parseFloat(item[2]),
-                        low: parseFloat(item[3]),
-                        close: parseFloat(item[4]),
-                    })).reverse(); // OKX返回最新在前，需要反转
-                } else if (currentExchange === 'bitget') {
-                    // Bitget返回格式需要适配
-                    klineData = data.data.map(item => ({
+                } else if (currentExchange === 'binance') {
+                    const response = await fetch(config.kline);
+                    const data = await response.json();
+                    
+                    klineData = data.map(item => ({
                         time: parseInt(item[0]) / 1000,
                         open: parseFloat(item[1]),
                         high: parseFloat(item[2]),
@@ -659,15 +665,10 @@
             
             const config = API_CONFIG[currentExchange];
             
-            if (config.ws && currentExchange === 'binance') {
-                // 币安WebSocket更新
+            if (currentExchange === 'hyperliquid') {
+                connectHyperliquidWS();
+            } else if (currentExchange === 'binance') {
                 connectBinanceWS();
-            } else if (config.ws && currentExchange === 'okx') {
-                // OKX WebSocket更新
-                connectOKXWS();
-            } else {
-                // Bitget或其他：使用轮询
-                setInterval(updatePricePolling, 3000);
             }
         }
         
@@ -715,90 +716,91 @@
             }
         }
         
-        // === OKX WebSocket连接 ===
-        function connectOKXWS() {
+        // === Hyperliquid WebSocket连接 ===
+        function connectHyperliquidWS() {
             try {
-                wsConnection = new WebSocket(API_CONFIG.okx.ws);
+                wsConnection = new WebSocket(API_CONFIG.hyperliquid.ws);
                 
                 wsConnection.onopen = () => {
+                    console.log('✅ Hyperliquid WebSocket 已连接');
+                    
                     // 订阅K线数据
                     wsConnection.send(JSON.stringify({
-                        op: 'subscribe',
-                        args: [{
-                            channel: 'candle1m',
-                            instId: 'BTC-USDT-SWAP'
-                        }]
+                        method: 'subscribe',
+                        subscription: {
+                            type: 'candle',
+                            coin: API_CONFIG.hyperliquid.coin,
+                            interval: '1m'
+                        }
                     }));
+                    
+                    // 订阅实时价格（allMids）
+                    wsConnection.send(JSON.stringify({
+                        method: 'subscribe',
+                        subscription: {
+                            type: 'allMids'
+                        }
+                    }));
+                    
+                    addLog('Hyperliquid WebSocket连接成功', 'success');
                 };
                 
                 wsConnection.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.data && data.data[0]) {
-                        const item = data.data[0];
-                        const candle = {
-                            time: parseInt(item[0]) / 1000,
-                            open: parseFloat(item[1]),
-                            high: parseFloat(item[2]),
-                            low: parseFloat(item[3]),
-                            close: parseFloat(item[4]),
-                        };
+                    try {
+                        const data = JSON.parse(event.data);
                         
-                        candlestickSeries.update(candle);
-                        currentPrice = candle.close;
-                        document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
+                        // K线更新
+                        if (data.channel === 'candle' && data.data) {
+                            const item = data.data;
+                            const candle = {
+                                time: parseInt(item.t) / 1000,
+                                open: parseFloat(item.o),
+                                high: parseFloat(item.h),
+                                low: parseFloat(item.l),
+                                close: parseFloat(item.c),
+                            };
+                            
+                            candlestickSeries.update(candle);
+                            currentPrice = candle.close;
+                            document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
+                            
+                            updatePositionsList();
+                            updatePriceLineLabels();
+                            checkOrderTriggers();
+                        }
                         
-                        // 更新仓位PnL
-                        updatePositionsList();
-                        
-                        // 更新K线图上的标签
-                        updatePriceLineLabels();
-                        
-                        checkOrderTriggers();
+                        // 实时价格更新（allMids）
+                        else if (data.channel === 'allMids' && data.data) {
+                            const mids = data.data.mids;
+                            if (mids && mids[API_CONFIG.hyperliquid.coin]) {
+                                const price = parseFloat(mids[API_CONFIG.hyperliquid.coin]);
+                                if (price > 0) {
+                                    currentPrice = price;
+                                    document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
+                                    updatePositionsList();
+                                    updatePriceLineLabels();
+                                    checkOrderTriggers();
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Hyperliquid WebSocket 消息处理错误:', error);
                     }
                 };
                 
                 wsConnection.onerror = (error) => {
-                    console.error('OKX WebSocket错误:', error);
-                    setInterval(updatePricePolling, 3000);
+                    console.error('Hyperliquid WebSocket错误:', error);
+                    addLog('WebSocket连接异常', 'error');
                 };
                 
-                addLog('OKX WebSocket连接成功', 'success');
+                wsConnection.onclose = () => {
+                    console.log('Hyperliquid WebSocket 连接关闭，5秒后重连...');
+                    addLog('连接断开，正在重连...', 'info');
+                    setTimeout(connectHyperliquidWS, 5000);
+                };
             } catch (error) {
-                console.error('OKX WebSocket连接失败:', error);
-                setInterval(updatePricePolling, 3000);
-            }
-        }
-        
-        // === 轮询更新价格（备用方案）===
-        async function updatePricePolling() {
-            try {
-                const config = API_CONFIG[currentExchange];
-                const response = await fetch(config.price);
-                const data = await response.json();
-                
-                let price;
-                if (currentExchange === 'binance') {
-                    price = parseFloat(data.price);
-                } else if (currentExchange === 'okx') {
-                    price = parseFloat(data.data[0].last);
-                } else if (currentExchange === 'bitget') {
-                    price = parseFloat(data.data.last);
-                }
-                
-                if (price && price > 0) {
-                    currentPrice = price;
-                    document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                    
-                    // 更新仓位PnL
-                    updatePositionsList();
-                    
-                    // 更新K线图上的标签
-                    updatePriceLineLabels();
-                    
-                    checkOrderTriggers();
-                }
-            } catch (error) {
-                console.error('价格更新失败:', error);
+                console.error('Hyperliquid WebSocket连接失败:', error);
+                addLog('WebSocket连接失败', 'error');
             }
         }
 

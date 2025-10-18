@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+    K线多模式点击下单演示 - 移动端优化版
+    
+    原创设计 Original Design by: dmatrader
+    设计时间 Design Date: 2025年3月 / March 2025
+    首次公开 First Published: 2025年10月 / October 2025
+    GitHub仓库 Repository: https://github.com/dmatrader/kline-click-trading
+    
+    核心创新 Core Innovation:
+    通过三种下单模式动态切换（普通/条件单/追踪止损），实现在K线图上
+    一键完成复杂订单操作的设计思路。
+    
+    Through three order modes dynamic switching (Normal/Conditional/Trailing Stop),
+    achieving the design concept of completing complex order operations with one
+    click on the K-line chart.
+    
+    许可证 License: CC BY-NC 4.0 (禁止商用 / Non-Commercial)
+    
+    联系方式 Contact:
+    - 
+    - 币安邀请码 Binance: MAPAMBQ1
+    - OKX邀请码: TRADER8
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>K线一键下单演示 - 移动端</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #d3d3d3;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Header 样式 */
+        .header {
+            background: #2a2e39;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #363c4e;
+            position: relative;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 14px;
+            color: #00d4aa;
+            margin: 0;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-btn {
+            padding: 6px 12px;
+            background: #1e88e5;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 50px);
+            position: relative;
+        }
+
+        /* K线图容器 */
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 控制面板 - 悬浮式 */
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(42, 46, 57, 0.95);
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .controls-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .amount-btn {
+            flex: 1;
+            padding: 8px 4px;
+            background: #2a2e39;
+            border: 1px solid #363c4e;
+            color: #d1d4dc;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .amount-btn.selected {
+            background: #1e88e5;
+            border-color: #1e88e5;
+            color: white;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px 4px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            font-size: 12px;
+        }
+
+        .mode-quick { background: #26a69a; }
+        .mode-normal { background: #666; }
+        .mode-conditional { background: #1e88e5; }
+        .mode-trailing { background: #9c27b0; }
+
+        .param-control {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .param-control.active {
+            display: flex;
+        }
+
+        .param-control span {
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .param-control input,
+        .param-control select {
+            flex: 1;
+            background: #1e222d;
+            border: 1px solid #363c4e;
+            color: #d1d4dc;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+
+        /* 价格信息 - 已移除悬浮框，改为标题栏显示 */
+
+        /* 价格线标签容器 */
+        #priceLineLabels {
+            pointer-events: none; /* 容器本身不抢事件 */
+        }
+        
+        /* 价格线标签 */
+        .price-line-label {
+            position: fixed;
+            left: 10px;
+            background: rgba(42, 46, 57, 0.95);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
+            touch-action: none; /* 完全禁用浏览器触摸手势 */
+            -webkit-touch-callout: none; /* iOS禁用长按菜单 */
+            pointer-events: auto; /* 子节点接收事件 */
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .price-line-label:active {
+            cursor: grabbing;
+            transform: scale(1.03);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .price-line-label::before {
+            content: '⋮';
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .price-line-label.dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+            transform: scale(1.05);
+            border-color: #00d4aa;
+        }
+
+        .price-line-label.dragging::before {
+            color: #00d4aa;
+        }
+
+        .price-line-label button {
+            background: rgba(239, 83, 80, 0.9);
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .price-line-label button:active {
+            background: #ef5350;
+            transform: scale(0.95);
+        }
+
+        .price-line-label.order-buy { border-left: 4px solid #26a69a; }
+        .price-line-label.order-sell { border-left: 4px solid #ef5350; }
+        .price-line-label.position-long { border-left: 4px solid #00d4aa; }
+        .price-line-label.position-short { border-left: 4px solid #ff9800; }
+
+        /* 底部Tab栏 */
+        .bottom-tabs {
+            display: flex;
+            background: #2a2e39;
+            border-top: 1px solid #363c4e;
+            position: relative;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            background: transparent;
+            border: none;
+            color: #9ca3b0;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: #00d4aa;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #00d4aa;
+        }
+
+        .tab-icon {
+            font-size: 16px;
+        }
+
+        /* 侧边面板 - 从底部弹出 */
+        .side-panel {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: -100%;
+            max-height: 60vh;
+            background: #2a2e39;
+            border-top: 1px solid #363c4e;
+            transition: bottom 0.3s ease;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .side-panel.active {
+            bottom: 0;
+        }
+
+        .panel-header {
+            padding: 12px 15px;
+            background: #1e222d;
+            font-size: 13px;
+            font-weight: 600;
+            color: #00d4aa;
+            border-bottom: 1px solid #363c4e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .panel-close {
+            background: none;
+            border: none;
+            color: #9ca3b0;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-content {
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* 持仓/订单项 */
+        .position-item, .order-item, .log-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #1e222d;
+            border-radius: 6px;
+            border-left: 3px solid #363c4e;
+            font-size: 12px;
+        }
+
+        .position-long { border-left-color: #26a69a; }
+        .position-short { border-left-color: #ef5350; }
+        .order-buy { border-left-color: #26a69a; }
+        .order-sell { border-left-color: #ef5350; }
+        .log-success { border-left-color: #26a69a; }
+        .log-error { border-left-color: #ef5350; }
+        .log-info { border-left-color: #1e88e5; }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .item-details {
+            color: #9ca3b0;
+            font-size: 10px;
+            margin-top: 4px;
+        }
+
+        .close-btn, .cancel-btn {
+            background: #ef5350;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            min-height: 28px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+            font-size: 12px;
+        }
+
+        /* 遮罩层 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* 菜单弹窗 */
+        .menu-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: #2a2e39;
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 3000;
+            display: none;
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 90vw;
+            width: 320px;
+        }
+
+        .menu-popup.active {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .menu-popup h3 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .menu-item {
+            padding: 12px;
+            background: #1e222d;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .menu-item:active {
+            background: #363c4e;
+        }
+
+        /* 交易确认弹窗 */
+        .trade-popup {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            right: 0;
+            background: #2a2e39;
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            z-index: 3500;
+            transition: bottom 0.3s ease;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+        }
+
+        .trade-popup.active {
+            bottom: 0;
+        }
+
+        .trade-popup-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .trade-popup-price {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00d4aa;
+            margin-bottom: 8px;
+        }
+
+        .trade-popup-info {
+            font-size: 12px;
+            color: #9ca3b0;
+        }
+
+        .trade-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .trade-btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .trade-btn-buy {
+            background: linear-gradient(135deg, #26a69a, #00d4aa);
+            color: white;
+        }
+
+        .trade-btn-buy:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #1e8e82, #00b894);
+        }
+
+        .trade-btn-sell {
+            background: linear-gradient(135deg, #ef5350, #f44336);
+            color: white;
+        }
+
+        .trade-btn-sell:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #e53935, #d32f2f);
+        }
+
+        .trade-cancel-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid #363c4e;
+            border-radius: 8px;
+            color: #9ca3b0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .trade-cancel-btn:active {
+            background: #1e222d;
+        }
+
+        /* 桌面端适配 */
+        @media (min-width: 768px) {
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .bottom-tabs {
+                display: none;
+            }
+
+            .main-container {
+                flex-direction: row;
+                height: calc(100vh - 60px);
+            }
+
+            .sidebar {
+                width: 350px;
+                background: #2a2e39;
+                border-right: 1px solid #363c4e;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .panel-section {
+                border-bottom: 1px solid #363c4e;
+            }
+
+            .panel-title {
+                padding: 10px 15px;
+                background: #1e222d;
+                font-size: 12px;
+                font-weight: 600;
+                color: #00d4aa;
+                border-bottom: 1px solid #363c4e;
+            }
+
+            .side-panel {
+                position: static;
+                max-height: none;
+                border-radius: 0;
+                flex: 1;
+            }
+
+            .side-panel.active {
+                bottom: auto;
+            }
+
+            .panel-header {
+                display: none;
+            }
+
+            .controls {
+                left: 15px;
+                right: auto;
+                max-width: 500px;
+            }
+
+            .price-info {
+                right: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="flex: 1;">
+            <h1>📈 K线一键下单 <span style="font-size: 11px; color: #9ca3b0;">BTC/USDT</span></h1>
+            <p style="font-size: 10px; color: #9ca3b0; margin-top: 2px;">
+                <span id="headerTip">点击K线选择买卖</span>
+                <span style="margin: 0 6px; color: #363c4e;">|</span>
+                <span style="color: #00d4aa; font-weight: 600;" id="currentPriceHeader">--</span>
+            </p>
+        </div>
+        <div class="header-right">
+            <button class="menu-btn" onclick="toggleMenu()">☰ 菜单</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- 桌面端侧边栏 -->
+        <div class="sidebar" style="display: none;">
+            <div class="panel-section">
+                <div class="panel-title">📊 持仓列表</div>
+                <div class="panel-content" id="positionsListDesktop">
+                    <div class="empty-state">暂无持仓</div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-title">💼 挂单列表</div>
+                <div class="panel-content" id="ordersListDesktop">
+                    <div class="empty-state">暂无挂单</div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-title">📝 操作日志</div>
+                <div class="panel-content" id="logsListDesktop">
+                    <div class="log-item log-info">系统准备就绪...</div>
+                    <div class="log-item log-info">桌面端：左键买，右键卖</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- K线图区域 -->
+        <div class="chart-wrapper">
+            <div class="controls">
+                <div class="controls-row">
+                    <button class="amount-btn selected" data-index="0">10U</button>
+                    <button class="amount-btn" data-index="1">100U</button>
+                    <button class="amount-btn" data-index="2">500U</button>
+                    <button class="amount-btn" data-index="3">1000U</button>
+                </div>
+                <div class="controls-row">
+                    <button class="mode-btn mode-quick" id="modeBtn" onclick="cycleMode()">快捷</button>
+                    <div class="param-control" id="offsetControl">
+                        <span>Offset:</span>
+                        <input type="number" id="offsetInput" value="0" min="0" max="10" step="0.1">
+                        <span>%</span>
+                    </div>
+                    <div class="param-control" id="callbackControl">
+                        <span>回撤:</span>
+                        <select id="callbackSelect">
+                            <option value="0.5">0.5%</option>
+                            <option value="1" selected>1%</option>
+                            <option value="1.5">1.5%</option>
+                            <option value="2">2%</option>
+                            <option value="3">3%</option>
+                            <option value="5">5%</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chart"></div>
+        </div>
+        
+    </div>
+    
+    <!-- 价格线标签容器（独立层，确保在最上层） -->
+    <div id="priceLineLabels" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9999;"></div>
+
+    <!-- 底部Tab栏（移动端） -->
+    <div class="bottom-tabs">
+        <button class="tab-btn active" data-panel="chart">
+            <span class="tab-icon">📈</span>
+            <span>K线</span>
+        </button>
+        <button class="tab-btn" data-panel="positions">
+            <span class="tab-icon">📊</span>
+            <span>持仓</span>
+        </button>
+        <button class="tab-btn" data-panel="orders">
+            <span class="tab-icon">💼</span>
+            <span>挂单</span>
+        </button>
+        <button class="tab-btn" data-panel="logs">
+            <span class="tab-icon">📝</span>
+            <span>日志</span>
+        </button>
+    </div>
+
+    <!-- 侧边面板（移动端） -->
+    <div class="side-panel" id="positionsPanel">
+        <div class="panel-header">
+            <span>📊 持仓列表</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="positionsList">
+            <div class="empty-state">暂无持仓</div>
+        </div>
+    </div>
+
+    <div class="side-panel" id="ordersPanel">
+        <div class="panel-header">
+            <span>💼 挂单列表</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="ordersList">
+            <div class="empty-state">暂无挂单<br/>点击K线图下单</div>
+        </div>
+    </div>
+
+    <div class="side-panel" id="logsPanel">
+        <div class="panel-header">
+            <span>📝 操作日志</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="logsList">
+            <div class="log-item log-info">系统准备就绪...</div>
+            <div class="log-item log-info">⚡快捷模式：点击上方卖，下方买</div>
+            <div class="log-item log-info">点击模式按钮可切换</div>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+    <!-- 菜单弹窗 -->
+    <div class="menu-popup" id="menuPopup">
+        <h3>菜单</h3>
+        <div class="menu-item" onclick="configAmounts()">⚙️ 自定义金额</div>
+        <div class="menu-item" onclick="openGitHub()">📖 使用说明</div>
+        <div class="menu-item" onclick="openBinance()">💰 币安开户（返佣）</div>
+        <div class="menu-item" onclick="switchExchange()">🔄 切换交易所</div>
+        <div class="menu-item" onclick="toggleMenu()">✕ 关闭</div>
+    </div>
+
+    <!-- 交易确认弹窗 -->
+    <div class="trade-popup" id="tradePopup">
+        <div class="trade-popup-header">
+            <div class="trade-popup-price" id="tradePopupPrice">--</div>
+            <div class="trade-popup-info">
+                <span id="tradePopupMode">普通模式</span> | 
+                <span id="tradePopupAmount">10U</span>
+            </div>
+        </div>
+        <div class="trade-buttons">
+            <button class="trade-btn trade-btn-buy" onclick="confirmTrade('BUY')">
+                📈 买入
+            </button>
+            <button class="trade-btn trade-btn-sell" onclick="confirmTrade('SELL')">
+                📉 卖出
+            </button>
+        </div>
+        <button class="trade-cancel-btn" onclick="closeTradePopup()">取消</button>
+    </div>
+
+    <script>
+        // === 全局变量 ===
+        let chart, candlestickSeries;
+        let orderMode = 'quick'; // 默认快捷模式
+        let currentAmount = 10;
+        let amountPresets = [10, 100, 500, 1000];
+        let currentPrice = 0;
+        let orders = [];
+        let positions = [];
+        let orderIdCounter = 1;
+        let positionIdCounter = 1;
+        let currentExchange = 'binance';
+        let wsConnection = null;
+        let priceLinesMap = new Map();
+        let isDesktop = window.innerWidth >= 768;
+        let pendingTradePrice = 0; // 待确认的交易价格
+        let hasShownDragTip = false; // 是否已显示拖动提示
+
+        const API_CONFIG = {
+            binance: {
+                name: '币安',
+                kline: 'https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&limit=300',
+                ws: 'wss://fstream.binance.com/ws/btcusdt@kline_1m'
+            }
+        };
+
+        // === 辅助函数：图表坐标换算 ===
+        function getChartRect() {
+            return document.getElementById('chart').getBoundingClientRect();
+        }
+
+        function clamp(v, lo, hi) {
+            return Math.max(lo, Math.min(hi, v));
+        }
+
+        function yToPrice(yCssPx) {
+            return candlestickSeries.coordinateToPrice(yCssPx);
+        }
+
+        function priceToY(price) {
+            const y = candlestickSeries.priceToCoordinate(price);
+            return y == null ? null : y;
+        }
+
+        // === 初始化 ===
+        document.addEventListener('DOMContentLoaded', function() {
+            checkDesktop();
+            initChart();
+            loadKlineData();
+            bindEvents();
+            updateCurrentPrice(); // 初始化价格显示
+            addLog('系统初始化完成', 'info');
+        });
+
+        // === 检查桌面端 ===
+        function checkDesktop() {
+            isDesktop = window.innerWidth >= 768;
+            updateHeaderTip();
+            
+            if (isDesktop) {
+                document.querySelector('.sidebar').style.display = 'flex';
+                document.querySelector('.bottom-tabs').style.display = 'none';
+            } else {
+                document.querySelector('.sidebar').style.display = 'none';
+                document.querySelector('.bottom-tabs').style.display = 'flex';
+            }
+        }
+
+        // === 更新Header提示 ===
+        function updateHeaderTip() {
+            const headerTip = document.getElementById('headerTip');
+            if (!headerTip) return;
+            
+            if (isDesktop) {
+                headerTip.textContent = '左键买 | 右键卖';
+            } else {
+                if (orderMode === 'quick') {
+                    headerTip.textContent = '点击: 上方卖 | 下方买';
+                } else {
+                    headerTip.textContent = '点击K线选择买卖';
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            checkDesktop();
+            if (chart) {
+                chart.applyOptions({
+                    width: document.getElementById('chart').clientWidth,
+                    height: document.getElementById('chart').clientHeight,
+                });
+                ensureAllLabels(); // 批量同步所有标签位置
+            }
+        });
+
+        // === 初始化图表 ===
+        function initChart() {
+            const chartDiv = document.getElementById('chart');
+            chart = LightweightCharts.createChart(chartDiv, {
+                width: chartDiv.clientWidth,
+                height: chartDiv.clientHeight,
+                layout: {
+                    background: { color: '#1a1a1a' },
+                    textColor: '#d3d3d3',
+                },
+                grid: {
+                    vertLines: { color: '#2a2e39' },
+                    horzLines: { color: '#2a2e39' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#363c4e',
+                },
+                timeScale: {
+                    borderColor: '#363c4e',
+                    timeVisible: true,
+                },
+            });
+
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false,
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350',
+            });
+
+            // 移动端优化：改进触摸交互体验
+            if (!isDesktop) {
+                // 允许双指缩放和单指滚动
+                chartDiv.style.touchAction = 'manipulation';
+                
+                chart.applyOptions({
+                    handleScale: {
+                        axisPressedMouseMove: {
+                            time: true,
+                            price: true,
+                        },
+                        mouseWheel: true,
+                        pinch: true, // 启用双指缩放
+                    },
+                    handleScroll: {
+                        mouseWheel: true,
+                        pressedMouseMove: true,
+                        horzTouchDrag: true,
+                        vertTouchDrag: true, // 允许垂直拖动查看价格
+                    },
+                });
+                
+                // 优化触摸事件处理
+                let touchStartTime = 0;
+                let touchMoved = false;
+                
+                chartDiv.addEventListener('touchstart', (e) => {
+                    touchStartTime = Date.now();
+                    touchMoved = false;
+                }, { passive: true });
+                
+                chartDiv.addEventListener('touchmove', (e) => {
+                    touchMoved = true;
+                }, { passive: true });
+                
+                // 只有在短时间内未移动时才认为是点击
+                chartDiv.addEventListener('touchend', (e) => {
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (!touchMoved && touchDuration < 200) {
+                        // 这是一次点击，而非滑动或缩放
+                        const rect = chartDiv.getBoundingClientRect();
+                        const touch = e.changedTouches[0];
+                        const y = touch.clientY - rect.top;
+                        const price = candlestickSeries.coordinateToPrice(y);
+                        if (price && price > 0) {
+                            handleMobileTap(price);
+                        }
+                    }
+                }, { passive: true });
+            }
+
+            // 点击事件（支持触摸和鼠标）
+            chartDiv.addEventListener('click', handleChartTap);
+            chartDiv.addEventListener('contextmenu', handleChartLongPress);
+
+            chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                ensureAllLabels(); // K线范围变化时同步标签位置
+            });
+        }
+
+        // === 处理移动端点击 ===
+        function handleMobileTap(price) {
+            // 快捷模式：直接下单，无需确认
+            if (orderMode === 'quick') {
+                // 根据价格自动判断买卖方向
+                const isRightClick = (price > currentPrice); // 高于当前价=卖出，低于=买入
+                handleChartClick(price, isRightClick);
+            } else {
+                // 其他模式：弹出确认框
+                showTradePopup(price);
+            }
+        }
+
+        // === 处理图表点击 ===
+        let lastTapTime = 0;
+        function handleChartTap(e) {
+            if (e.button !== 0) return;
+            
+            // 移动端：防止双击缩放干扰
+            if (!isDesktop) {
+                const now = Date.now();
+                const timeSinceLastTap = now - lastTapTime;
+                lastTapTime = now;
+                
+                // 如果是快速双击（< 300ms），忽略以避免与缩放冲突
+                if (timeSinceLastTap < 300) {
+                    return;
+                }
+            }
+            
+            const rect = e.target.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const price = candlestickSeries.coordinateToPrice(y);
+            if (price && price > 0) {
+                // 移动端：根据模式处理
+                if (!isDesktop) {
+                    handleMobileTap(price);
+                } else {
+                    // 桌面端：左键买入
+                    handleChartClick(price, false);
+                }
+            }
+        }
+
+        function handleChartLongPress(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.target.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const price = candlestickSeries.coordinateToPrice(y);
+            if (price && price > 0) {
+                // 桌面端：右键卖出
+                if (isDesktop) {
+                    handleChartClick(price, true);
+                }
+            }
+        }
+
+        // === 显示交易确认弹窗 ===
+        function showTradePopup(price) {
+            pendingTradePrice = parseFloat(price.toFixed(2));
+            
+            // 更新弹窗信息
+            document.getElementById('tradePopupPrice').textContent = pendingTradePrice.toFixed(2);
+            document.getElementById('tradePopupAmount').textContent = currentAmount + 'U';
+            
+            // 更新模式信息
+            const modeNames = {
+                'quick': '快捷模式',
+                'normal': '普通模式',
+                'conditional': '条件单模式',
+                'trailing': '追踪止损模式'
+            };
+            let modeText = modeNames[orderMode] || '快捷模式';
+            if (orderMode === 'conditional') {
+                const offset = parseFloat(document.getElementById('offsetInput').value) || 0;
+                modeText += ` (Offset: ${offset}%)`;
+            } else if (orderMode === 'trailing') {
+                const callback = parseFloat(document.getElementById('callbackSelect').value) || 1;
+                modeText += ` (回撤: ${callback}%)`;
+            }
+            document.getElementById('tradePopupMode').textContent = modeText;
+            
+            // 显示弹窗和遮罩
+            const popup = document.getElementById('tradePopup');
+            const overlay = document.getElementById('overlay');
+            
+            // 先关闭其他弹窗
+            closePanel();
+            document.getElementById('menuPopup').classList.remove('active');
+            
+            popup.classList.add('active');
+            overlay.classList.add('active');
+            
+            // 修改遮罩点击事件为关闭交易弹窗
+            overlay.onclick = closeTradePopup;
+        }
+
+        // === 确认交易 ===
+        function confirmTrade(side) {
+            if (pendingTradePrice > 0) {
+                const isRightClick = (side === 'SELL');
+                handleChartClick(pendingTradePrice, isRightClick);
+                closeTradePopup();
+            }
+        }
+
+        // === 关闭交易弹窗 ===
+        function closeTradePopup() {
+            document.getElementById('tradePopup').classList.remove('active');
+            document.getElementById('overlay').classList.remove('active');
+            overlay.onclick = closePanel; // 恢复原来的点击事件
+            pendingTradePrice = 0;
+        }
+
+        // === 处理下单 ===
+        function handleChartClick(clickPrice, isRightClick) {
+            const price = parseFloat(clickPrice.toFixed(2));
+            const side = isRightClick ? 'SELL' : 'BUY';
+            const sideText = side === 'BUY' ? '买入' : '卖出';
+
+            let order = {
+                id: orderIdCounter++,
+                side: side,
+                price: price,
+                amount: currentAmount,
+                mode: orderMode === 'quick' ? 'normal' : orderMode, // 快捷模式使用普通模式的下单逻辑
+                status: 'pending',
+                time: new Date().toLocaleTimeString()
+            };
+
+            // 根据模式处理（快捷模式复用普通模式逻辑）
+            if (orderMode === 'quick' || orderMode === 'normal') {
+                const modePrefix = orderMode === 'quick' ? '⚡' : '';
+                if ((side === 'BUY' && price >= currentPrice) || (side === 'SELL' && price <= currentPrice)) {
+                    order.status = 'filled';
+                    addLog(`✅ ${modePrefix}${sideText}单成交 @ ${price} (${currentAmount}U)`, 'success');
+                    createPosition(side, price, currentAmount);
+                } else {
+                    addLog(`📝 ${modePrefix}${sideText}挂单 @ ${price} (${currentAmount}U)`, 'info');
+                    drawOrderLine(order);
+                }
+            } else if (orderMode === 'conditional') {
+                const offset = parseFloat(document.getElementById('offsetInput').value) || 0;
+                order.priceOffset = offset;
+                order.stopPrice = price;
+
+                if (side === 'BUY') {
+                    if (price < currentPrice) {
+                        order.orderType = 'LIMIT';
+                        order.limitPrice = price;
+                        addLog(`📝 ${sideText}限价 @ ${price}`, 'info');
+                    } else {
+                        order.orderType = 'STOP';
+                        order.limitPrice = price * (1 + offset / 100);
+                        addLog(`📝 条件${sideText} (触发:${price})`, 'info');
+                    }
+                } else {
+                    if (price > currentPrice) {
+                        order.orderType = 'LIMIT';
+                        order.limitPrice = price;
+                        addLog(`📝 ${sideText}限价 @ ${price}`, 'info');
+                    } else {
+                        order.orderType = 'STOP';
+                        order.limitPrice = price * (1 - offset / 100);
+                        addLog(`📝 条件${sideText} (触发:${price})`, 'info');
+                    }
+                }
+                drawOrderLine(order);
+            } else if (orderMode === 'trailing') {
+                const callback = parseFloat(document.getElementById('callbackSelect').value) || 1;
+                order.callbackRate = callback;
+                order.activationPrice = price;
+                order.activated = false;
+
+                if (side === 'BUY') {
+                    if (price >= currentPrice) {
+                        order.activated = true;
+                        order.lowestPrice = currentPrice;
+                    } else {
+                        order.lowestPrice = price;
+                    }
+                } else {
+                    if (price <= currentPrice) {
+                        order.activated = true;
+                        order.highestPrice = currentPrice;
+                    } else {
+                        order.highestPrice = price;
+                    }
+                }
+                addLog(`📝 追踪${sideText} (回撤:${callback}%)`, 'info');
+                drawOrderLine(order);
+            }
+
+            orders.push(order);
+            updateOrdersList();
+        }
+
+        // === 创建仓位 ===
+        function createPosition(side, price, amount) {
+            const position = {
+                id: positionIdCounter++,
+                side: side,
+                entryPrice: price,
+                amount: amount,
+                quantity: amount / price,
+                time: new Date().toLocaleTimeString(),
+                pnl: 0
+            };
+
+            positions.push(position);
+            updatePositionsList();
+            drawPositionLine(position);
+            addLog(`📊 开仓: ${side === 'BUY' ? '多' : '空'} @ ${price.toFixed(2)}`, 'success');
+        }
+
+        // === 平仓 ===
+        function closePosition(positionId) {
+            const idx = positions.findIndex(p => p.id === positionId);
+            if (idx === -1) return;
+
+            const pos = positions[idx];
+            removePriceLine('position-' + positionId);
+            positions.splice(idx, 1);
+            updatePositionsList();
+            addLog(`✅ 平仓 PnL: ${pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}U`, pos.pnl >= 0 ? 'success' : 'error');
+        }
+
+        // === 撤单 ===
+        function cancelOrder(orderId) {
+            const idx = orders.findIndex(o => o.id === orderId);
+            if (idx === -1) return;
+
+            const order = orders[idx];
+            if (order.status !== 'pending') return;
+
+            order.status = 'cancelled';
+            removePriceLine('order-' + orderId);
+            updateOrdersList();
+            addLog(`🗑️ 已撤单 @ ${order.price.toFixed(2)}`, 'info');
+        }
+
+        // === 更新列表 ===
+        function updatePositionsList() {
+            const containers = isDesktop 
+                ? [document.getElementById('positionsListDesktop')]
+                : [document.getElementById('positionsList')];
+
+            containers.forEach(container => {
+                if (!container) return;
+                
+                if (positions.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无持仓</div>';
+                    return;
+                }
+
+                container.innerHTML = positions.map(pos => {
+                    const pnl = pos.side === 'BUY' 
+                        ? (currentPrice - pos.entryPrice) * pos.quantity
+                        : (pos.entryPrice - currentPrice) * pos.quantity;
+                    pos.pnl = pnl;
+
+                    const pnlColor = pnl >= 0 ? '#26a69a' : '#ef5350';
+                    const posClass = pos.side === 'BUY' ? 'position-long' : 'position-short';
+
+                    return `
+                        <div class="position-item ${posClass}">
+                            <div class="item-header">
+                                <span>${pos.side === 'BUY' ? '做多' : '做空'} @ ${pos.entryPrice.toFixed(2)}</span>
+                                <span style="color: ${pnlColor}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}U</span>
+                            </div>
+                            <div class="item-details">
+                                ${pos.time} | ${pos.quantity.toFixed(6)} BTC
+                                <button class="close-btn" onclick="closePosition(${pos.id})" style="margin-left: 8px;">平仓</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function updateOrdersList() {
+            const containers = isDesktop
+                ? [document.getElementById('ordersListDesktop')]
+                : [document.getElementById('ordersList')];
+
+            containers.forEach(container => {
+                if (!container) return;
+
+                if (orders.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无挂单</div>';
+                    return;
+                }
+
+                container.innerHTML = orders.map(order => {
+                    const sideClass = order.side === 'BUY' ? 'order-buy' : 'order-sell';
+                    const statusText = order.status === 'filled' ? '已成交' : 
+                                     order.status === 'cancelled' ? '已撤单' : '等待';
+                    const statusColor = order.status === 'filled' ? '#26a69a' : 
+                                      order.status === 'cancelled' ? '#666' : '#ffa726';
+
+                    let details = `${order.time} | ${order.amount}U`;
+                    if (order.mode === 'conditional' && order.stopPrice) {
+                        details += ` | 触发:${order.stopPrice.toFixed(2)}`;
+                    } else if (order.mode === 'trailing') {
+                        details += ` | 回撤:${order.callbackRate}%`;
+                    }
+
+                    const cancelBtn = order.status === 'pending' 
+                        ? `<button class="cancel-btn" onclick="cancelOrder(${order.id})" style="margin-left: 8px;">撤单</button>`
+                        : '';
+
+                    return `
+                        <div class="order-item ${sideClass}" style="${order.status === 'cancelled' ? 'opacity: 0.5;' : ''}">
+                            <div class="item-header">
+                                <span>${order.side === 'BUY' ? '买' : '卖'} @ ${order.price.toFixed(2)}</span>
+                                <span style="color: ${statusColor}">${statusText}</span>
+                            </div>
+                            <div class="item-details">${details}${cancelBtn}</div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        // === 添加日志 ===
+        function addLog(message, type = 'info') {
+            const containers = isDesktop
+                ? [document.getElementById('logsListDesktop')]
+                : [document.getElementById('logsList')];
+
+            const time = new Date().toLocaleTimeString();
+            const logClass = `log-${type}`;
+
+            containers.forEach(container => {
+                if (!container) return;
+
+                const logItem = document.createElement('div');
+                logItem.className = `log-item ${logClass}`;
+                logItem.textContent = `[${time}] ${message}`;
+                container.insertBefore(logItem, container.firstChild);
+
+                while (container.children.length > 20) {
+                    container.removeChild(container.lastChild);
+                }
+            });
+        }
+
+        // === 绘制价格线 ===
+        function drawOrderLine(order) {
+            const lineKey = 'order-' + order.id;
+            let displayPrice = order.stopPrice || order.activationPrice || order.price;
+
+            const priceLine = candlestickSeries.createPriceLine({
+                price: displayPrice,
+                color: order.side === 'BUY' ? '#26a69a' : '#ef5350',
+                lineWidth: 2,
+                lineStyle: 2,
+                axisLabelVisible: false,
+                title: '',
+            });
+
+            priceLinesMap.set(lineKey, {priceLine, type: 'order', data: order, el: null});
+            renderOrUpdateLabel(lineKey); // 只渲染这一条
+            
+            // 首次下单时显示拖动提示
+            if (!hasShownDragTip && !isDesktop && orders.length <= 1) {
+                hasShownDragTip = true;
+                setTimeout(() => {
+                    addLog('💡 提示：长按左侧标签可拖动改单', 'info');
+                }, 1500);
+            }
+        }
+
+        function drawPositionLine(position) {
+            const lineKey = 'position-' + position.id;
+
+            const priceLine = candlestickSeries.createPriceLine({
+                price: position.entryPrice,
+                color: position.side === 'BUY' ? '#00d4aa' : '#ff9800',
+                lineWidth: 3,
+                lineStyle: 0,
+                axisLabelVisible: false,
+                title: '',
+            });
+
+            priceLinesMap.set(lineKey, {priceLine, type: 'position', data: position, el: null});
+            renderOrUpdateLabel(lineKey); // 只渲染这一条
+        }
+
+        function removePriceLine(lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (item) {
+                if (item.priceLine) {
+                    candlestickSeries.removePriceLine(item.priceLine);
+                }
+                // 删除 DOM 节点
+                if (item.el && item.el.parentNode) {
+                    item.el.parentNode.removeChild(item.el);
+                }
+                priceLinesMap.delete(lineKey);
+            }
+        }
+
+        // === 更新价格线标签 ===
+        // === 创建或更新单条标签（增量渲染）===
+        function renderOrUpdateLabel(lineKey) {
+            const container = document.getElementById('priceLineLabels');
+            const item = priceLinesMap.get(lineKey);
+            if (!item) return;
+
+            const { type, data } = item;
+            let price = (type === 'order')
+                ? (data.stopPrice || data.activationPrice || data.price)
+                : data.entryPrice;
+
+            // 计算绝对 Y 坐标
+            const chartRect = getChartRect();
+            const y = priceToY(price);
+            if (y == null) return; // 价格不在可视范围
+
+            const absTop = (chartRect.top + y - 23) + 'px';
+            const sideClass = (type === 'order')
+                ? (data.side === 'BUY' ? 'order-buy' : 'order-sell')
+                : (data.side === 'BUY' ? 'position-long' : 'position-short');
+
+            const text = (() => {
+                if (type === 'order') {
+                    const modeTag = data.mode === 'conditional' ? '[条件]' :
+                                  data.mode === 'trailing'   ? '[追踪]' : '';
+                    return `${modeTag}${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}`;
+                } else {
+                    const pnl = data.pnl || 0;
+                    return `${data.side === 'BUY' ? '多' : '空'} ${price.toFixed(2)} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)})`;
+                }
+            })();
+
+            // 已有 DOM，做增量更新
+            if (item.el) {
+                item.el.style.top = absTop;
+                const textEl = item.el.querySelector('.pll-text');
+                if (textEl) textEl.textContent = text;
+                return;
+            }
+
+            // 没有 DOM，创建新的
+            const label = document.createElement('div');
+            label.className = `price-line-label ${sideClass}`;
+            label.style.top = absTop;
+            label.dataset.lineKey = lineKey;
+            label.innerHTML = `
+                <span class="pll-text">${text}</span>
+                ${type === 'order'
+                    ? `<button class="pll-btn" onclick="event.stopPropagation(); cancelOrder(${data.id})">撤单</button>`
+                    : `<button class="pll-btn" onclick="event.stopPropagation(); closePosition(${data.id})">平仓</button>`}
+            `;
+
+            // 只有订单允许拖拽
+            if (type === 'order') {
+                enableDragPointer(label, lineKey, data);
+            }
+
+            container.appendChild(label);
+            item.el = label; // 缓存节点
+        }
+
+        // === 批量确保所有标签存在 ===
+        function ensureAllLabels() {
+            priceLinesMap.forEach((_, key) => renderOrUpdateLabel(key));
+        }
+
+        // === 更新价格线标签（改为不清空重建）===
+        function updatePriceLineLabels() {
+            ensureAllLabels();
+        }
+
+        // === 启用拖拽 - 使用 Pointer Events + Pointer Capture ===
+        function enableDragPointer(label, lineKey, orderData) {
+            const chartDiv = document.getElementById('chart');
+            let dragging = false;
+            let startPrice = 0;
+            let pointerId = null;
+            let raf = null;
+
+            const onPointerDown = (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                e.preventDefault();
+
+                pointerId = e.pointerId;
+                label.setPointerCapture(pointerId);
+                dragging = true;
+                label.classList.add('dragging');
+                document.body.style.cursor = 'grabbing';
+
+                startPrice = orderData.stopPrice || orderData.activationPrice || orderData.price;
+                chartDiv.style.pointerEvents = 'none';
+                
+                console.log('🎯 拖动开始:', startPrice);
+            };
+
+            const onPointerMove = (e) => {
+                if (!dragging) return;
+
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => {
+                    const rect = getChartRect();
+                    // 把手指的 Y 限制在图表矩形内
+                    const yInChart = clamp(e.clientY, rect.top, rect.bottom) - rect.top;
+
+                    const newPrice = yToPrice(yInChart);
+                    if (!newPrice || newPrice <= 0) return;
+
+                    // 1) 更新订单对象与图表价格线（不触发全量重绘）
+                    fastUpdateOrderPrice(orderData, newPrice, lineKey);
+
+                    // 2) 直接移动当前 label（避免全量重排）
+                    const y = priceToY(newPrice);
+                    if (y != null) {
+                        label.style.top = (rect.top + y - 23) + 'px';
+                        // 同步文本
+                        const modeTag = orderData.mode === 'conditional' ? '[条件]' :
+                                      orderData.mode === 'trailing'   ? '[追踪]' : '';
+                        const textEl = label.querySelector('.pll-text');
+                        if (textEl) {
+                            textEl.textContent = `${modeTag}${orderData.side === 'BUY' ? '买' : '卖'} ${newPrice.toFixed(2)}`;
+                        }
+                    }
+                });
+            };
+
+            const onPointerUp = (e) => {
+                if (!dragging) return;
+                dragging = false;
+
+                if (raf) { cancelAnimationFrame(raf); raf = null; }
+                label.releasePointerCapture(pointerId);
+                label.classList.remove('dragging');
+                document.body.style.cursor = '';
+                chartDiv.style.pointerEvents = 'auto';
+
+                const np = orderData.stopPrice || orderData.activationPrice || orderData.price;
+                if (Math.abs(np - startPrice) > 0.5) {
+                    addLog(`✅ 改单: ${orderData.side === 'BUY' ? '买' : '卖'} ${startPrice.toFixed(2)} → ${np.toFixed(2)}`, 'success');
+                    if (navigator.vibrate) navigator.vibrate(30);
+                }
+                updateOrdersList();
+                
+                console.log('✅ 拖动结束');
+            };
+
+            label.addEventListener('pointerdown', onPointerDown);
+            label.addEventListener('pointermove', onPointerMove);
+            label.addEventListener('pointerup', onPointerUp);
+            label.addEventListener('pointercancel', onPointerUp);
+        }
+
+        // === 快速更新订单价格（单条，不重建）===
+        function fastUpdateOrderPrice(order, newPrice, lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (!item || !item.priceLine) return;
+
+            // 更新数据对象
+            order.price = newPrice;
+            if (order.stopPrice) order.stopPrice = newPrice;
+            if (order.activationPrice) order.activationPrice = newPrice;
+
+            if (order.limitPrice && order.orderType === 'STOP') {
+                const offset = order.priceOffset || 0;
+                order.limitPrice = order.side === 'BUY'
+                    ? newPrice * (1 + offset / 100)
+                    : newPrice * (1 - offset / 100);
+            }
+
+            // 更新图表上的 PriceLine
+            item.priceLine.applyOptions({ price: newPrice });
+        }
+
+        // === 更新订单价格（旧接口，保持兼容）===
+        function updateOrderPrice(order, newPrice, lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (!item || !item.priceLine) return;
+
+            order.price = newPrice;
+            if (order.stopPrice) order.stopPrice = newPrice;
+            if (order.activationPrice) order.activationPrice = newPrice;
+            if (order.limitPrice && order.orderType === 'STOP') {
+                const offset = order.priceOffset || 0;
+                order.limitPrice = order.side === 'BUY'
+                    ? newPrice * (1 + offset / 100)
+                    : newPrice * (1 - offset / 100);
+            }
+
+            item.priceLine.applyOptions({ price: newPrice });
+            // 不再调用 updatePriceLineLabels()，由调用者决定是否更新
+        }
+
+        // === 检查订单触发 ===
+        function checkOrderTriggers() {
+            let triggered = false;
+
+            orders.forEach(order => {
+                if (order.status !== 'pending') return;
+
+                if (order.mode === 'normal') {
+                    if ((order.side === 'BUY' && currentPrice <= order.price) ||
+                        (order.side === 'SELL' && currentPrice >= order.price)) {
+                        order.status = 'filled';
+                        triggered = true;
+                        removePriceLine('order-' + order.id);
+                        createPosition(order.side, order.price, order.amount);
+                    }
+                } else if (order.mode === 'conditional') {
+                    if (order.orderType === 'LIMIT') {
+                        if ((order.side === 'BUY' && currentPrice <= order.limitPrice) ||
+                            (order.side === 'SELL' && currentPrice >= order.limitPrice)) {
+                            order.status = 'filled';
+                            triggered = true;
+                            removePriceLine('order-' + order.id);
+                            createPosition(order.side, order.limitPrice, order.amount);
+                        }
+                    } else {
+                        if ((order.side === 'BUY' && currentPrice >= order.stopPrice) ||
+                            (order.side === 'SELL' && currentPrice <= order.stopPrice)) {
+                            order.status = 'filled';
+                            triggered = true;
+                            removePriceLine('order-' + order.id);
+                            createPosition(order.side, order.limitPrice, order.amount);
+                        }
+                    }
+                } else if (order.mode === 'trailing') {
+                    if (order.side === 'BUY') {
+                        if (!order.activated) {
+                            if (currentPrice <= order.activationPrice) {
+                                order.activated = true;
+                                order.lowestPrice = currentPrice;
+                            }
+                        } else {
+                            order.lowestPrice = Math.min(order.lowestPrice, currentPrice);
+                            if (currentPrice >= order.lowestPrice * (1 + order.callbackRate / 100)) {
+                                order.status = 'filled';
+                                triggered = true;
+                                removePriceLine('order-' + order.id);
+                                createPosition(order.side, currentPrice, order.amount);
+                            }
+                        }
+                    } else {
+                        if (!order.activated) {
+                            if (currentPrice >= order.activationPrice) {
+                                order.activated = true;
+                                order.highestPrice = currentPrice;
+                            }
+                        } else {
+                            order.highestPrice = Math.max(order.highestPrice, currentPrice);
+                            if (currentPrice <= order.highestPrice * (1 - order.callbackRate / 100)) {
+                                order.status = 'filled';
+                                triggered = true;
+                                removePriceLine('order-' + order.id);
+                                createPosition(order.side, currentPrice, order.amount);
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (triggered) updateOrdersList();
+        }
+
+        // === 加载K线数据 ===
+        async function loadKlineData() {
+            try {
+                const response = await fetch(API_CONFIG.binance.kline);
+                const data = await response.json();
+
+                const klineData = data.map(item => ({
+                    time: parseInt(item[0]) / 1000,
+                    open: parseFloat(item[1]),
+                    high: parseFloat(item[2]),
+                    low: parseFloat(item[3]),
+                    close: parseFloat(item[4]),
+                }));
+
+                candlestickSeries.setData(klineData);
+                currentPrice = klineData[klineData.length - 1].close;
+                updateCurrentPrice();
+
+                addLog('K线数据加载成功', 'success');
+                startWebSocket();
+            } catch (error) {
+                addLog('数据加载失败', 'error');
+            }
+        }
+
+        // === 更新当前价格显示 ===
+        function updateCurrentPrice() {
+            const priceElement = document.getElementById('currentPriceHeader');
+            if (currentPrice > 0) {
+                priceElement.textContent = currentPrice.toFixed(2);
+                priceElement.style.color = '#00d4aa';
+            } else {
+                priceElement.textContent = '加载中...';
+                priceElement.style.color = '#9ca3b0';
+            }
+        }
+
+        // === WebSocket实时更新 ===
+        function startWebSocket() {
+            try {
+                wsConnection = new WebSocket(API_CONFIG.binance.ws);
+
+                wsConnection.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.k) {
+                        const candle = {
+                            time: parseInt(data.k.t) / 1000,
+                            open: parseFloat(data.k.o),
+                            high: parseFloat(data.k.h),
+                            low: parseFloat(data.k.l),
+                            close: parseFloat(data.k.c),
+                        };
+
+                        candlestickSeries.update(candle);
+                        currentPrice = candle.close;
+                        updateCurrentPrice();
+
+                        updatePositionsList();
+                        ensureAllLabels(); // 更新所有标签（持仓PnL变化）
+                        checkOrderTriggers();
+                    }
+                };
+
+                addLog('实时更新已启动', 'success');
+            } catch (error) {
+                addLog('WebSocket连接失败', 'error');
+            }
+        }
+
+        // === 切换模式 ===
+        function cycleMode() {
+            const modes = ['quick', 'normal', 'conditional', 'trailing'];
+            const idx = modes.indexOf(orderMode);
+            orderMode = modes[(idx + 1) % modes.length];
+
+            const btn = document.getElementById('modeBtn');
+            const offsetControl = document.getElementById('offsetControl');
+            const callbackControl = document.getElementById('callbackControl');
+
+            btn.className = 'mode-btn';
+            offsetControl.classList.remove('active');
+            callbackControl.classList.remove('active');
+
+            if (orderMode === 'quick') {
+                btn.classList.add('mode-quick');
+                btn.textContent = '快捷';
+            } else if (orderMode === 'normal') {
+                btn.classList.add('mode-normal');
+                btn.textContent = '普通';
+            } else if (orderMode === 'conditional') {
+                btn.classList.add('mode-conditional');
+                btn.textContent = '条件单';
+                offsetControl.classList.add('active');
+            } else {
+                btn.classList.add('mode-trailing');
+                btn.textContent = '追踪止损';
+                callbackControl.classList.add('active');
+            }
+
+            updateHeaderTip(); // 更新提示文字
+            addLog(`切换到${btn.textContent}模式`, 'info');
+        }
+
+        // === Tab切换 ===
+        function openPanel(panelName) {
+            closePanel();
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.panel === panelName);
+            });
+
+            if (panelName !== 'chart') {
+                const panel = document.getElementById(panelName + 'Panel');
+                const overlay = document.getElementById('overlay');
+                if (panel) {
+                    panel.classList.add('active');
+                    overlay.classList.add('active');
+                }
+            }
+        }
+
+        function closePanel() {
+            document.querySelectorAll('.side-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        // === 菜单功能 ===
+        function toggleMenu() {
+            const menu = document.getElementById('menuPopup');
+            const overlay = document.getElementById('overlay');
+            const isActive = menu.classList.contains('active');
+
+            if (isActive) {
+                menu.classList.remove('active');
+                overlay.classList.remove('active');
+            } else {
+                closePanel();
+                menu.classList.add('active');
+                overlay.classList.add('active');
+            }
+        }
+
+        function configAmounts() {
+            const input = prompt(`设置金额快选（逗号分隔）:\n\n当前: ${amountPresets.join(', ')}`, amountPresets.join(','));
+            if (input) {
+                try {
+                    const values = input.split(',').map(v => parseInt(v.trim())).filter(v => v > 0);
+                    if (values.length === 4) {
+                        amountPresets = values;
+                        document.querySelectorAll('.amount-btn').forEach((btn, i) => {
+                            btn.textContent = amountPresets[i] + 'U';
+                        });
+                        localStorage.setItem('kline_amounts', JSON.stringify(amountPresets));
+                        addLog('金额配置已更新', 'success');
+                    } else {
+                        addLog('请输入4个金额值', 'error');
+                    }
+                } catch (e) {
+                    addLog('配置格式错误', 'error');
+                }
+            }
+            toggleMenu();
+        }
+
+        function openGitHub() {
+            window.open('https://github.com/dmatrader/kline-click-trading', '_blank');
+            toggleMenu();
+        }
+
+        function openBinance() {
+            window.open('https://www.binance.com/join?ref=MAPAMBQ1', '_blank');
+            toggleMenu();
+        }
+
+        function switchExchange() {
+            addLog('当前仅支持币安（演示版）', 'info');
+            toggleMenu();
+        }
+
+        // === 绑定事件 ===
+        function bindEvents() {
+            // 金额按钮
+            document.querySelectorAll('.amount-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    currentAmount = amountPresets[index];
+                    addLog(`金额: ${currentAmount}U`, 'info');
+                });
+            });
+
+            // Tab切换
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openPanel(this.dataset.panel);
+                });
+            });
+
+            // 加载金额配置
+            const saved = localStorage.getItem('kline_amounts');
+            if (saved) {
+                try {
+                    amountPresets = JSON.parse(saved);
+                    document.querySelectorAll('.amount-btn').forEach((btn, i) => {
+                        btn.textContent = amountPresets[i] + 'U';
+                    });
+                } catch (e) {}
+            }
+        }
+    </script>
+</body>
+</html>
+
