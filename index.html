@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <!--
-    K线多模式点击下单演示
+    K线多模式点击下单演示 - 移动端优化版 (Hyperliquid)
     
     原创设计 Original Design by: dmatrader
     设计时间 Design Date: 2025年3月 / March 2025
@@ -9,292 +9,134 @@
     GitHub仓库 Repository: https://github.com/dmatrader/kline-click-trading
     
     核心创新 Core Innovation:
-    通过三种下单模式动态切换（普通/条件单/追踪止损），实现在K线图上
-    一键完成复杂订单操作的设计思路。
+    通过四种下单模式动态切换（快捷/普通/条件单/追踪止损），实现在K线图上
+    一键完成复杂订单操作的设计思路。移动端专门优化，支持丝滑拖动改单。
     
-    Through three order modes dynamic switching (Normal/Conditional/Trailing Stop),
+    Through four order modes dynamic switching (Quick/Normal/Conditional/Trailing Stop),
     achieving the design concept of completing complex order operations with one
-    click on the K-line chart.
+    click on the K-line chart. Mobile optimized with smooth drag-to-modify orders.
+    
+    数据源 Data Source: Hyperliquid (全球可访问 / Globally Accessible)
     
     许可证 License: CC BY-NC 4.0 (禁止商用 / Non-Commercial)
     
     联系方式 Contact:
     - 
     - 币安邀请码 Binance: MAPAMBQ1
-    - OKX邀请码: TRADER8
 -->
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K线一键下单演示 - 普通/条件单/跟踪止损</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>K线一键下单演示 - Hyperliquid 移动端</title>
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
             background: #1a1a1a;
             color: #d3d3d3;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
+        /* Header 样式 */
         .header {
             background: #2a2e39;
-            padding: 12px 20px;
+            padding: 8px 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid #363c4e;
+            position: relative;
+            z-index: 100;
         }
 
         .header h1 {
-            font-size: 16px;
+            font-size: 14px;
             color: #00d4aa;
             margin: 0;
         }
 
-        .mode-controls {
+        .header-right {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 11px;
         }
 
-        .mode-btn {
-            padding: 6px 16px;
+        .menu-btn {
+            padding: 6px 12px;
+            background: #1e88e5;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
+            border-radius: 6px;
             color: white;
-            width: 90px;
-            transition: all 0.2s;
+            font-size: 12px;
+            cursor: pointer;
         }
 
-        .mode-normal { background: #2a2e39; }
-        .mode-conditional { background: #1e88e5; }
-        .mode-trailing { background: #9c27b0; }
-
-        .param-control {
-            display: none;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .param-control.active {
-            display: flex;
-        }
-
-        .param-control input,
-        .param-control select {
-            background: #1e222d;
-            border: 1px solid #363c4e;
-            color: #d1d4dc;
-            border-radius: 3px;
-            padding: 4px 8px;
-            font-size: 11px;
-            width: 65px;
-        }
-        
-        .param-control span {
-            min-width: 60px;
-        }
-
+        /* 主容器 */
         .main-container {
             display: flex;
-            height: calc(100vh - 60px);
+            flex-direction: column;
+            height: calc(100vh - 50px);
+            position: relative;
         }
 
-        .sidebar {
-            width: 350px;
-            background: #2a2e39;
-            border-right: 1px solid #363c4e;
-            overflow-y: auto;
-        }
-        
-        .position-item {
-            padding: 8px;
-            margin-bottom: 6px;
-            background: #1e222d;
-            border-radius: 4px;
-            border-left: 3px solid #363c4e;
-        }
-        
-        .position-long { border-left-color: #26a69a; }
-        .position-short { border-left-color: #ef5350; }
-        
-        .position-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-        
-        .position-pnl {
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .position-details {
-            color: #9ca3b0;
-            font-size: 10px;
-        }
-        
-        .close-btn {
-            background: #ef5350;
-            color: white;
-            border: none;
-            padding: 2px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 10px;
-            margin-left: 8px;
-        }
-
-        .panel-section {
-            border-bottom: 1px solid #363c4e;
-        }
-
-        .panel-title {
-            padding: 10px 15px;
-            background: #1e222d;
-            font-size: 12px;
-            font-weight: 600;
-            color: #00d4aa;
-            border-bottom: 1px solid #363c4e;
-        }
-
-        .panel-content {
-            padding: 10px;
-            font-size: 11px;
-        }
-
-        .order-item, .log-item {
-            padding: 8px;
-            margin-bottom: 6px;
-            background: #1e222d;
-            border-radius: 4px;
-            border-left: 3px solid #363c4e;
-        }
-
-        .order-buy { border-left-color: #26a69a; }
-        .order-sell { border-left-color: #ef5350; }
-
-        .order-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-
-        .order-details {
-            color: #9ca3b0;
-            font-size: 10px;
-        }
-
-        .chart-container {
+        /* K线图容器 */
+        .chart-wrapper {
             flex: 1;
             position: relative;
+            overflow: hidden;
         }
 
         #chart {
             width: 100%;
             height: 100%;
         }
-        
-        .price-line-label {
+
+        /* 控制面板 - 悬浮式 */
+        .controls {
             position: absolute;
+            top: 10px;
             left: 10px;
+            right: 10px;
+            z-index: 1000;
             background: rgba(42, 46, 57, 0.95);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .controls-row {
             display: flex;
             align-items: center;
             gap: 6px;
-            z-index: 100;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            cursor: move;
-            user-select: none;
+            margin-bottom: 8px;
         }
-        
-        .price-line-label:hover {
-            background: rgba(50, 54, 67, 0.98);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        
-        .price-line-label.dragging {
-            opacity: 0.8;
-            cursor: grabbing;
-        }
-        
-        .price-line-label button {
-            background: rgba(239, 83, 80, 0.9);
-            color: white;
-            border: none;
-            padding: 2px 6px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 10px;
-            transition: all 0.2s;
-        }
-        
-        .price-line-label button:hover {
-            background: #ef5350;
-            transform: scale(1.05);
-        }
-        
-        .price-line-label.order-buy { border-left: 3px solid #26a69a; }
-        .price-line-label.order-sell { border-left: 3px solid #ef5350; }
-        .price-line-label.position-long { border-left: 3px solid #00d4aa; }
-        .price-line-label.position-short { border-left: 3px solid #ff9800; }
 
-        .controls {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 1000;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            background: rgba(42, 46, 57, 0.9);
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.08);
-            backdrop-filter: blur(10px);
-        }
-        
-        .config-btn {
-            padding: 4px 8px;
-            background: #2a2e39;
-            border: 1px solid #363c4e;
-            color: #9ca3b0;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
-        }
-        
-        .config-btn:hover {
-            background: #363c4e;
-            color: #d1d4dc;
+        .controls-row:last-child {
+            margin-bottom: 0;
         }
 
         .amount-btn {
-            padding: 6px 12px;
+            flex: 1;
+            padding: 8px 4px;
             background: #2a2e39;
             border: 1px solid #363c4e;
             color: #d1d4dc;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
         }
 
         .amount-btn.selected {
@@ -303,176 +145,649 @@
             color: white;
         }
 
-        .price-info {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 1000;
-            background: rgba(42, 46, 57, 0.9);
-            padding: 10px 15px;
+        .mode-btn {
+            flex: 1;
+            padding: 8px 4px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            font-size: 12px;
+        }
+
+        .mode-quick { background: #26a69a; }
+        .mode-normal { background: #666; }
+        .mode-conditional { background: #1e88e5; }
+        .mode-trailing { background: #9c27b0; }
+
+        .param-control {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .param-control.active {
+            display: flex;
+        }
+
+        .param-control span {
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .param-control input,
+        .param-control select {
+            flex: 1;
+            background: #1e222d;
+            border: 1px solid #363c4e;
+            color: #d1d4dc;
             border-radius: 4px;
+            padding: 6px 8px;
             font-size: 11px;
         }
 
-        .price-label {
-            color: #9ca3b0;
-        }
+        /* 价格信息 - 已移除悬浮框，改为标题栏显示 */
 
-        .price-value {
-            color: #00d4aa;
-            font-size: 14px;
-            font-weight: 600;
+        /* 价格线标签容器 */
+        #priceLineLabels {
+            pointer-events: none; /* 容器本身不抢事件 */
         }
         
-        .referral-link {
-            background: linear-gradient(135deg, #1e88e5, #9c27b0);
-            padding: 8px 20px;
+        /* 价格线标签 */
+        .price-line-label {
+            position: fixed;
+            background: rgba(42, 46, 57, 0.95);
+            padding: 6px 10px;
             border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
-        }
-        
-        .referral-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.5);
-        }
-        
-        .referral-link a {
+            font-size: 11px;
+            font-weight: 500;
             color: white;
-            text-decoration: none;
             display: flex;
             align-items: center;
             gap: 6px;
-        }
-        
-        .referral-badge {
-            background: rgba(255, 193, 7, 0.9);
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #1a1a1a;
-            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
+            touch-action: none; /* 完全禁用浏览器触摸手势 */
+            -webkit-touch-callout: none; /* iOS禁用长按菜单 */
+            pointer-events: auto; /* 子节点接收事件 */
+            transition: transform 0.1s, box-shadow 0.1s;
+            z-index: 200;
         }
 
+        .price-line-label:active {
+            cursor: grabbing;
+            transform: scale(1.03);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .price-line-label::before {
+            content: '⋮';
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .price-line-label.dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+            transform: scale(1.05);
+            border-color: #00d4aa;
+        }
+
+        .price-line-label.dragging::before {
+            color: #00d4aa;
+        }
+
+        .price-line-label button {
+            background: rgba(239, 83, 80, 0.9);
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .price-line-label button:active {
+            background: #ef5350;
+            transform: scale(0.95);
+        }
+
+        .price-line-label.order-buy { border-left: 4px solid #26a69a; }
+        .price-line-label.order-sell { border-left: 4px solid #ef5350; }
+        .price-line-label.position-long { border-left: 4px solid #00d4aa; }
+        .price-line-label.position-short { border-left: 4px solid #ff9800; }
+
+        /* 底部Tab栏 */
+        .bottom-tabs {
+            display: flex;
+            background: #2a2e39;
+            border-top: 1px solid #363c4e;
+            position: relative;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            background: transparent;
+            border: none;
+            color: #9ca3b0;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: #00d4aa;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #00d4aa;
+        }
+
+        .tab-icon {
+            font-size: 16px;
+        }
+
+        /* 侧边面板 - 从底部弹出 */
+        .side-panel {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: -100%;
+            max-height: 60vh;
+            background: #2a2e39;
+            border-top: 1px solid #363c4e;
+            transition: bottom 0.3s ease;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .side-panel.active {
+            bottom: 0;
+        }
+
+        .panel-header {
+            padding: 12px 15px;
+            background: #1e222d;
+            font-size: 13px;
+            font-weight: 600;
+            color: #00d4aa;
+            border-bottom: 1px solid #363c4e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .panel-close {
+            background: none;
+            border: none;
+            color: #9ca3b0;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-content {
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* 持仓/订单项 */
+        .position-item, .order-item, .log-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #1e222d;
+            border-radius: 6px;
+            border-left: 3px solid #363c4e;
+            font-size: 12px;
+        }
+
+        .position-long { border-left-color: #26a69a; }
+        .position-short { border-left-color: #ef5350; }
+        .order-buy { border-left-color: #26a69a; }
+        .order-sell { border-left-color: #ef5350; }
         .log-success { border-left-color: #26a69a; }
         .log-error { border-left-color: #ef5350; }
         .log-info { border-left-color: #1e88e5; }
 
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .item-details {
+            color: #9ca3b0;
+            font-size: 10px;
+            margin-top: 4px;
+        }
+
+        .close-btn, .cancel-btn {
+            background: #ef5350;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            min-height: 28px;
+        }
+
         .empty-state {
             text-align: center;
             color: #666;
+            padding: 40px 20px;
+            font-size: 12px;
+        }
+
+        /* 遮罩层 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* 菜单弹窗 */
+        .menu-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: #2a2e39;
+            border-radius: 12px;
             padding: 20px;
-            font-size: 11px;
+            z-index: 3000;
+            display: none;
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 90vw;
+            width: 320px;
+        }
+
+        .menu-popup.active {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .menu-popup h3 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .menu-item {
+            padding: 12px;
+            background: #1e222d;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .menu-item:active {
+            background: #363c4e;
+        }
+
+        /* 交易确认弹窗 */
+        .trade-popup {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            right: 0;
+            background: #2a2e39;
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            z-index: 3500;
+            transition: bottom 0.3s ease;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+        }
+
+        .trade-popup.active {
+            bottom: 0;
+        }
+
+        .trade-popup-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .trade-popup-price {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00d4aa;
+            margin-bottom: 8px;
+        }
+
+        .trade-popup-info {
+            font-size: 12px;
+            color: #9ca3b0;
+        }
+
+        .trade-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .trade-btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .trade-btn-buy {
+            background: linear-gradient(135deg, #26a69a, #00d4aa);
+            color: white;
+        }
+
+        .trade-btn-buy:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #1e8e82, #00b894);
+        }
+
+        .trade-btn-sell {
+            background: linear-gradient(135deg, #ef5350, #f44336);
+            color: white;
+        }
+
+        .trade-btn-sell:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #e53935, #d32f2f);
+        }
+
+        .trade-cancel-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid #363c4e;
+            border-radius: 8px;
+            color: #9ca3b0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .trade-cancel-btn:active {
+            background: #1e222d;
+        }
+
+        /* 桌面端适配 */
+        @media (min-width: 768px) {
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .bottom-tabs {
+                display: none;
+            }
+
+            .main-container {
+                flex-direction: row;
+                height: calc(100vh - 60px);
+            }
+
+            .sidebar {
+                width: 350px;
+                background: #2a2e39;
+                border-right: 1px solid #363c4e;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .panel-section {
+                border-bottom: 1px solid #363c4e;
+            }
+
+            .panel-title {
+                padding: 10px 15px;
+                background: #1e222d;
+                font-size: 12px;
+                font-weight: 600;
+                color: #00d4aa;
+                border-bottom: 1px solid #363c4e;
+            }
+
+            .side-panel {
+                position: static;
+                max-height: none;
+                border-radius: 0;
+                flex: 1;
+            }
+
+            .side-panel.active {
+                bottom: auto;
+            }
+
+            .panel-header {
+                display: none;
+            }
+
+            .controls {
+                left: 15px;
+                right: auto;
+                max-width: 500px;
+            }
+
+            .price-info {
+                right: 15px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div>
-            <h1>📈 K线一键下单演示 - BTC-USD (Hyperliquid)</h1>
-            <p style="font-size: 11px; color: #9ca3b0; margin: 4px 0 0 0;">🖱️ 左键=买入 | 右键=卖出 | 全球可访问</p>
+        <div style="flex: 1;">
+            <h1>📈 K线一键下单 <span style="font-size: 11px; color: #9ca3b0;">BTC-USD (Hyperliquid)</span></h1>
+            <p style="font-size: 10px; color: #9ca3b0; margin-top: 2px;">
+                <span id="headerTip">点击K线选择买卖</span>
+                <span style="margin: 0 6px; color: #363c4e;">|</span>
+                <span style="color: #00d4aa; font-weight: 600;" id="currentPriceHeader">--</span>
+            </p>
         </div>
-        
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <a href="https://github.com/dmatrader/kline-click-trading" target="_blank" 
-               style="background: #1e88e5; color: white; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 6px;"
-               onmouseover="this.style.background='#1976d2'; this.style.transform='translateY(-2px)'" 
-               onmouseout="this.style.background='#1e88e5'; this.style.transform='translateY(0)'">
-                📖 使用说明
-            </a>
-            
-            <div class="referral-link">
-                <a href="https://www.binance.com/join?ref=MAPAMBQ1" target="_blank">
-                    <span>💰 币安开户</span>
-                    <span class="referral-badge">手续费返佣</span>
-                </a>
-            </div>
+        <div class="header-right">
+            <button class="menu-btn" onclick="toggleMenu()">☰ 菜单</button>
         </div>
-        
-        <select id="exchangeSelector" style="background: #1e222d; border: 1px solid #363c4e; color: #d1d4dc; border-radius: 3px; padding: 6px 10px; font-size: 11px;">
-            <option value="hyperliquid">Hyperliquid（全球可访问）</option>
-            <option value="binance">币安 Binance</option>
-        </select>
     </div>
 
     <div class="main-container">
-        <div class="sidebar">
+        <!-- 桌面端侧边栏 -->
+        <div class="sidebar" style="display: none;">
             <div class="panel-section">
-                <div class="panel-title">📊 持仓列表 (模拟)</div>
-                <div class="panel-content" id="positionsList">
+                <div class="panel-title">📊 持仓列表</div>
+                <div class="panel-content" id="positionsListDesktop">
                     <div class="empty-state">暂无持仓</div>
                 </div>
             </div>
-            
             <div class="panel-section">
-                <div class="panel-title">💼 挂单列表 (模拟)</div>
-                <div class="panel-content" id="ordersList">
-                    <div class="empty-state">暂无挂单<br/>点击K线图下单</div>
+                <div class="panel-title">💼 挂单列表</div>
+                <div class="panel-content" id="ordersListDesktop">
+                    <div class="empty-state">暂无挂单</div>
                 </div>
             </div>
-
             <div class="panel-section">
                 <div class="panel-title">📝 操作日志</div>
-                <div class="panel-content" id="logsList">
+                <div class="panel-content" id="logsListDesktop">
                     <div class="log-item log-info">系统准备就绪...</div>
-                    <div class="log-item log-info">🖱️ 左键=买入，右键=卖出</div>
+                    <div class="log-item log-info">桌面端：左键买，右键卖</div>
                 </div>
             </div>
         </div>
 
-        <div class="chart-container">
+        <!-- K线图区域 -->
+        <div class="chart-wrapper">
             <div class="controls">
-                <button class="amount-btn selected" data-index="0" id="amountBtn0">10U</button>
-                <button class="amount-btn" data-index="1" id="amountBtn1">100U</button>
-                <button class="amount-btn" data-index="2" id="amountBtn2">500U</button>
-                <button class="amount-btn" data-index="3" id="amountBtn3">1000U</button>
-                <button class="config-btn" onclick="configAmounts()" title="自定义金额">⚙️</button>
-                
-                <div style="width: 1px; height: 24px; background: #363c4e; margin: 0 4px;"></div>
-                
-                <span style="color: #9ca3b0;">模式:</span>
-                <button class="mode-btn mode-normal" id="modeBtn" onclick="cycleMode()">普通</button>
-                
-                <div class="param-control" id="offsetControl">
-                    <span>Offset:</span>
-                    <input type="number" id="offsetInput" value="0" min="0" max="10" step="0.1">
-                    <span>%</span>
+                <div class="controls-row">
+                    <button class="amount-btn selected" data-index="0">10U</button>
+                    <button class="amount-btn" data-index="1">100U</button>
+                    <button class="amount-btn" data-index="2">500U</button>
+                    <button class="amount-btn" data-index="3">1000U</button>
                 </div>
-                
-                <div class="param-control" id="callbackControl">
-                    <span>回撤:</span>
-                    <select id="callbackSelect">
-                        <option value="0.5">0.5%</option>
-                        <option value="1" selected>1%</option>
-                        <option value="1.5">1.5%</option>
-                        <option value="2">2%</option>
-                        <option value="3">3%</option>
-                        <option value="5">5%</option>
-                        <option value="10">10%</option>
-                    </select>
+                <div class="controls-row">
+                    <button class="mode-btn mode-quick" id="modeBtn" onclick="cycleMode()">快捷</button>
+                    <div class="param-control" id="offsetControl">
+                        <span>Offset:</span>
+                        <input type="number" id="offsetInput" value="0" min="0" max="10" step="0.1">
+                        <span>%</span>
+                    </div>
+                    <div class="param-control" id="callbackControl">
+                        <span>回撤:</span>
+                        <select id="callbackSelect">
+                            <option value="0.5">0.5%</option>
+                            <option value="1" selected>1%</option>
+                            <option value="1.5">1.5%</option>
+                            <option value="2">2%</option>
+                            <option value="3">3%</option>
+                            <option value="5">5%</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="price-info">
-                <div class="price-label">当前价格</div>
-                <div class="price-value" id="currentPrice">加载中...</div>
             </div>
 
             <div id="chart"></div>
-            <div id="priceLineLabels"></div>
         </div>
+        
+    </div>
+    
+    <!-- 价格线标签容器（独立层，确保在最上层） -->
+    <div id="priceLineLabels" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9999;"></div>
+
+    <!-- 底部Tab栏（移动端） -->
+    <div class="bottom-tabs">
+        <button class="tab-btn active" data-panel="chart">
+            <span class="tab-icon">📈</span>
+            <span>K线</span>
+        </button>
+        <button class="tab-btn" data-panel="positions">
+            <span class="tab-icon">📊</span>
+            <span>持仓</span>
+        </button>
+        <button class="tab-btn" data-panel="orders">
+            <span class="tab-icon">💼</span>
+            <span>挂单</span>
+        </button>
+        <button class="tab-btn" data-panel="logs">
+            <span class="tab-icon">📝</span>
+            <span>日志</span>
+        </button>
+    </div>
+
+    <!-- 侧边面板（移动端） -->
+    <div class="side-panel" id="positionsPanel">
+        <div class="panel-header">
+            <span>📊 持仓列表</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="positionsList">
+            <div class="empty-state">暂无持仓</div>
+        </div>
+    </div>
+
+    <div class="side-panel" id="ordersPanel">
+        <div class="panel-header">
+            <span>💼 挂单列表</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="ordersList">
+            <div class="empty-state">暂无挂单<br/>点击K线图下单</div>
+        </div>
+    </div>
+
+    <div class="side-panel" id="logsPanel">
+        <div class="panel-header">
+            <span>📝 操作日志</span>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="panel-content" id="logsList">
+            <div class="log-item log-info">系统准备就绪...</div>
+            <div class="log-item log-info">⚡快捷模式：点击上方卖，下方买</div>
+            <div class="log-item log-info">点击模式按钮可切换</div>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+    <!-- 菜单弹窗 -->
+    <div class="menu-popup" id="menuPopup">
+        <h3>菜单</h3>
+        <div class="menu-item" onclick="configAmounts()">⚙️ 自定义金额</div>
+        <div class="menu-item" onclick="openGitHub()">📖 使用说明</div>
+        <div class="menu-item" onclick="openBinance()">💰 币安开户（返佣）</div>
+        <div class="menu-item" onclick="toggleMenu()">✕ 关闭</div>
+    </div>
+
+    <!-- 交易确认弹窗 -->
+    <div class="trade-popup" id="tradePopup">
+        <div class="trade-popup-header">
+            <div class="trade-popup-price" id="tradePopupPrice">--</div>
+            <div class="trade-popup-info">
+                <span id="tradePopupMode">普通模式</span> | 
+                <span id="tradePopupAmount">10U</span>
+            </div>
+        </div>
+        <div class="trade-buttons">
+            <button class="trade-btn trade-btn-buy" onclick="confirmTrade('BUY')">
+                📈 买入
+            </button>
+            <button class="trade-btn trade-btn-sell" onclick="confirmTrade('SELL')">
+                📉 卖出
+            </button>
+        </div>
+        <button class="trade-cancel-btn" onclick="closeTradePopup()">取消</button>
     </div>
 
     <script>
         // === 全局变量 ===
         let chart, candlestickSeries;
-        let orderMode = 'normal'; // normal, conditional, trailing
-        let priceOffset = 0;
-        let callbackRate = 1;
+        let orderMode = 'quick'; // 默认快捷模式
         let currentAmount = 10;
-        let amountPresets = [10, 100, 500, 1000]; // 可自定义的金额快选
+        let amountPresets = [10, 100, 500, 1000];
         let currentPrice = 0;
         let orders = [];
         let positions = [];
@@ -480,41 +795,98 @@
         let positionIdCounter = 1;
         let currentExchange = 'hyperliquid';
         let wsConnection = null;
-        
-        // K线图上的价格线
-        let priceLinesMap = new Map(); // key: orderId/positionId, value: priceLine object
-        
-        // API配置
+        let priceLinesMap = new Map();
+        let isDesktop = window.innerWidth >= 768;
+        let pendingTradePrice = 0; // 待确认的交易价格
+        let hasShownDragTip = false; // 是否已显示拖动提示
+
         const API_CONFIG = {
             hyperliquid: {
                 name: 'Hyperliquid',
                 rest: 'https://api.hyperliquid.xyz/info',
                 ws: 'wss://api.hyperliquid.xyz/ws',
-                coin: 'BTC'
-            },
-            binance: {
-                name: '币安',
-                kline: 'https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&limit=500',
-                price: 'https://fapi.binance.com/fapi/v1/ticker/price?symbol=BTCUSDT',
-                ws: 'wss://fstream.binance.com/ws/btcusdt@kline_1m'
+                coin: 'BTC' // Hyperliquid uses coin name, not pair
             }
         };
+        
+        // 当前使用的交易所
+        currentExchange = 'hyperliquid';
+
+        // === 辅助函数：图表坐标换算 ===
+        function getChartRect() {
+            return document.getElementById('chart').getBoundingClientRect();
+        }
+
+        function clamp(v, lo, hi) {
+            return Math.max(lo, Math.min(hi, v));
+        }
+
+        function yToPrice(yCssPx) {
+            return candlestickSeries.coordinateToPrice(yCssPx);
+        }
+
+        function priceToY(price) {
+            const y = candlestickSeries.priceToCoordinate(price);
+            return y == null ? null : y;
+        }
 
         // === 初始化 ===
         document.addEventListener('DOMContentLoaded', function() {
+            checkDesktop();
             initChart();
             loadKlineData();
             bindEvents();
-            updateModeUI();
+            updateCurrentPrice(); // 初始化价格显示
             addLog('系统初始化完成', 'info');
-            addLog('🖱️ 左键=买入，右键=卖出', 'info');
+        });
+
+        // === 检查桌面端 ===
+        function checkDesktop() {
+            isDesktop = window.innerWidth >= 768;
+            updateHeaderTip();
+            
+            if (isDesktop) {
+                document.querySelector('.sidebar').style.display = 'flex';
+                document.querySelector('.bottom-tabs').style.display = 'none';
+            } else {
+                document.querySelector('.sidebar').style.display = 'none';
+                document.querySelector('.bottom-tabs').style.display = 'flex';
+            }
+        }
+
+        // === 更新Header提示 ===
+        function updateHeaderTip() {
+            const headerTip = document.getElementById('headerTip');
+            if (!headerTip) return;
+            
+            if (isDesktop) {
+                headerTip.textContent = '左键买 | 右键卖';
+            } else {
+                if (orderMode === 'quick') {
+                    headerTip.textContent = '点击: 上方卖 | 下方买';
+                } else {
+                    headerTip.textContent = '点击K线选择买卖';
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            checkDesktop();
+            if (chart) {
+                chart.applyOptions({
+                    width: document.getElementById('chart').clientWidth,
+                    height: document.getElementById('chart').clientHeight,
+                });
+                ensureAllLabels(); // 批量同步所有标签位置
+            }
         });
 
         // === 初始化图表 ===
         function initChart() {
-            chart = LightweightCharts.createChart(document.getElementById('chart'), {
-                width: document.getElementById('chart').clientWidth,
-                height: document.getElementById('chart').clientHeight,
+            const chartDiv = document.getElementById('chart');
+            chart = LightweightCharts.createChart(chartDiv, {
+                width: chartDiv.clientWidth,
+                height: chartDiv.clientHeight,
                 layout: {
                     background: { color: '#1a1a1a' },
                     textColor: '#d3d3d3',
@@ -532,7 +904,6 @@
                 timeScale: {
                     borderColor: '#363c4e',
                     timeVisible: true,
-                    secondsVisible: false,
                 },
             });
 
@@ -544,183 +915,806 @@
                 wickDownColor: '#ef5350',
             });
 
-            // 图表点击事件 - 使用原生DOM事件以支持左右键区分
-            const chartDiv = document.getElementById('chart');
+            // 移动端优化：改进触摸交互体验
+            if (!isDesktop) {
+                // 允许双指缩放和单指滚动
+                chartDiv.style.touchAction = 'manipulation';
+                
+                chart.applyOptions({
+                    handleScale: {
+                        axisPressedMouseMove: {
+                            time: true,
+                            price: true,
+                        },
+                        mouseWheel: true,
+                        pinch: true, // 启用双指缩放
+                    },
+                    handleScroll: {
+                        mouseWheel: true,
+                        pressedMouseMove: true,
+                        horzTouchDrag: true,
+                        vertTouchDrag: true, // 允许垂直拖动查看价格
+                    },
+                });
+                
+                // 优化触摸事件处理
+                let touchStartTime = 0;
+                let touchMoved = false;
+                
+                chartDiv.addEventListener('touchstart', (e) => {
+                    touchStartTime = Date.now();
+                    touchMoved = false;
+                }, { passive: true });
+                
+                chartDiv.addEventListener('touchmove', (e) => {
+                    touchMoved = true;
+                }, { passive: true });
+                
+                // 只有在短时间内未移动时才认为是点击
+                chartDiv.addEventListener('touchend', (e) => {
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (!touchMoved && touchDuration < 200) {
+                        // 这是一次点击，而非滑动或缩放
+                        const rect = chartDiv.getBoundingClientRect();
+                        const touch = e.changedTouches[0];
+                        const y = touch.clientY - rect.top;
+                        const price = candlestickSeries.coordinateToPrice(y);
+                        if (price && price > 0) {
+                            handleMobileTap(price);
+                        }
+                    }
+                }, { passive: true });
+            }
+
+            // 点击事件（支持触摸和鼠标）
+            chartDiv.addEventListener('click', handleChartTap);
+            chartDiv.addEventListener('contextmenu', handleChartLongPress);
+
+            chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                ensureAllLabels(); // K线范围变化时同步标签位置
+            });
+        }
+
+        // === 处理移动端点击 ===
+        function handleMobileTap(price) {
+            // 快捷模式：直接下单，无需确认
+            if (orderMode === 'quick') {
+                // 根据价格自动判断买卖方向
+                const isRightClick = (price > currentPrice); // 高于当前价=卖出，低于=买入
+                handleChartClick(price, isRightClick);
+            } else {
+                // 其他模式：弹出确认框
+                showTradePopup(price);
+            }
+        }
+
+        // === 处理图表点击 ===
+        let lastTapTime = 0;
+        function handleChartTap(e) {
+            if (e.button !== 0) return;
             
-            // 左键点击 = 买入
-            chartDiv.addEventListener('click', (e) => {
-                if (e.button !== 0) return; // 只处理左键
-                const rect = chartDiv.getBoundingClientRect();
-                const y = e.clientY - rect.top;
-                const price = candlestickSeries.coordinateToPrice(y);
-                if (price && price > 0) {
+            // 移动端：防止双击缩放干扰
+            if (!isDesktop) {
+                const now = Date.now();
+                const timeSinceLastTap = now - lastTapTime;
+                lastTapTime = now;
+                
+                // 如果是快速双击（< 300ms），忽略以避免与缩放冲突
+                if (timeSinceLastTap < 300) {
+                    return;
+                }
+            }
+            
+            const rect = e.target.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const price = candlestickSeries.coordinateToPrice(y);
+            if (price && price > 0) {
+                // 移动端：根据模式处理
+                if (!isDesktop) {
+                    handleMobileTap(price);
+                } else {
+                    // 桌面端：左键买入
                     handleChartClick(price, false);
                 }
-            });
-            
-            // 右键点击 = 卖出
-            chartDiv.addEventListener('contextmenu', (e) => {
-                e.preventDefault(); // 阻止右键菜单
-                e.stopPropagation();
-                const rect = chartDiv.getBoundingClientRect();
-                const y = e.clientY - rect.top;
-                const price = candlestickSeries.coordinateToPrice(y);
-                if (price && price > 0) {
+            }
+        }
+
+        function handleChartLongPress(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.target.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const price = candlestickSeries.coordinateToPrice(y);
+            if (price && price > 0) {
+                // 桌面端：右键卖出
+                if (isDesktop) {
                     handleChartClick(price, true);
+                }
+            }
+        }
+
+        // === 显示交易确认弹窗 ===
+        function showTradePopup(price) {
+            pendingTradePrice = parseFloat(price.toFixed(2));
+            
+            // 更新弹窗信息
+            document.getElementById('tradePopupPrice').textContent = pendingTradePrice.toFixed(2);
+            document.getElementById('tradePopupAmount').textContent = currentAmount + 'U';
+            
+            // 更新模式信息
+            const modeNames = {
+                'quick': '快捷模式',
+                'normal': '普通模式',
+                'conditional': '条件单模式',
+                'trailing': '追踪止损模式'
+            };
+            let modeText = modeNames[orderMode] || '快捷模式';
+            if (orderMode === 'conditional') {
+                const offset = parseFloat(document.getElementById('offsetInput').value) || 0;
+                modeText += ` (Offset: ${offset}%)`;
+            } else if (orderMode === 'trailing') {
+                const callback = parseFloat(document.getElementById('callbackSelect').value) || 1;
+                modeText += ` (回撤: ${callback}%)`;
+            }
+            document.getElementById('tradePopupMode').textContent = modeText;
+            
+            // 显示弹窗和遮罩
+            const popup = document.getElementById('tradePopup');
+            const overlay = document.getElementById('overlay');
+            
+            // 先关闭其他弹窗
+            closePanel();
+            document.getElementById('menuPopup').classList.remove('active');
+            
+            popup.classList.add('active');
+            overlay.classList.add('active');
+            
+            // 修改遮罩点击事件为关闭交易弹窗
+            overlay.onclick = closeTradePopup;
+        }
+
+        // === 确认交易 ===
+        function confirmTrade(side) {
+            if (pendingTradePrice > 0) {
+                const isRightClick = (side === 'SELL');
+                handleChartClick(pendingTradePrice, isRightClick);
+                closeTradePopup();
+            }
+        }
+
+        // === 关闭交易弹窗 ===
+        function closeTradePopup() {
+            document.getElementById('tradePopup').classList.remove('active');
+            document.getElementById('overlay').classList.remove('active');
+            overlay.onclick = closePanel; // 恢复原来的点击事件
+            pendingTradePrice = 0;
+        }
+
+        // === 处理下单 ===
+        function handleChartClick(clickPrice, isRightClick) {
+            const price = parseFloat(clickPrice.toFixed(2));
+            const side = isRightClick ? 'SELL' : 'BUY';
+            const sideText = side === 'BUY' ? '买入' : '卖出';
+
+            let order = {
+                id: orderIdCounter++,
+                side: side,
+                price: price,
+                amount: currentAmount,
+                mode: orderMode === 'quick' ? 'normal' : orderMode, // 快捷模式使用普通模式的下单逻辑
+                status: 'pending',
+                time: new Date().toLocaleTimeString()
+            };
+
+            // 根据模式处理（快捷模式复用普通模式逻辑）
+            if (orderMode === 'quick' || orderMode === 'normal') {
+                const modePrefix = orderMode === 'quick' ? '⚡' : '';
+                if ((side === 'BUY' && price >= currentPrice) || (side === 'SELL' && price <= currentPrice)) {
+                    order.status = 'filled';
+                    addLog(`✅ ${modePrefix}${sideText}单成交 @ ${price} (${currentAmount}U)`, 'success');
+                    createPosition(side, price, currentAmount);
+                } else {
+                    addLog(`📝 ${modePrefix}${sideText}挂单 @ ${price} (${currentAmount}U)`, 'info');
+                    drawOrderLine(order);
+                }
+            } else if (orderMode === 'conditional') {
+                const offset = parseFloat(document.getElementById('offsetInput').value) || 0;
+                order.priceOffset = offset;
+                order.stopPrice = price;
+
+                if (side === 'BUY') {
+                    if (price < currentPrice) {
+                        order.orderType = 'LIMIT';
+                        order.limitPrice = price;
+                        addLog(`📝 ${sideText}限价 @ ${price}`, 'info');
+                    } else {
+                        order.orderType = 'STOP';
+                        order.limitPrice = price * (1 + offset / 100);
+                        addLog(`📝 条件${sideText} (触发:${price})`, 'info');
+                    }
+                } else {
+                    if (price > currentPrice) {
+                        order.orderType = 'LIMIT';
+                        order.limitPrice = price;
+                        addLog(`📝 ${sideText}限价 @ ${price}`, 'info');
+                    } else {
+                        order.orderType = 'STOP';
+                        order.limitPrice = price * (1 - offset / 100);
+                        addLog(`📝 条件${sideText} (触发:${price})`, 'info');
+                    }
+                }
+                drawOrderLine(order);
+            } else if (orderMode === 'trailing') {
+                const callback = parseFloat(document.getElementById('callbackSelect').value) || 1;
+                order.callbackRate = callback;
+                order.activationPrice = price;
+                order.activated = false;
+
+                if (side === 'BUY') {
+                    if (price >= currentPrice) {
+                        order.activated = true;
+                        order.lowestPrice = currentPrice;
+                    } else {
+                        order.lowestPrice = price;
+                    }
+                } else {
+                    if (price <= currentPrice) {
+                        order.activated = true;
+                        order.highestPrice = currentPrice;
+                    } else {
+                        order.highestPrice = price;
+                    }
+                }
+                addLog(`📝 追踪${sideText} (回撤:${callback}%)`, 'info');
+                drawOrderLine(order);
+            }
+
+            orders.push(order);
+            updateOrdersList();
+        }
+
+        // === 创建仓位 ===
+        function createPosition(side, price, amount) {
+            const position = {
+                id: positionIdCounter++,
+                side: side,
+                entryPrice: price,
+                amount: amount,
+                quantity: amount / price,
+                time: new Date().toLocaleTimeString(),
+                pnl: 0
+            };
+
+            positions.push(position);
+            updatePositionsList();
+            drawPositionLine(position);
+            addLog(`📊 开仓: ${side === 'BUY' ? '多' : '空'} @ ${price.toFixed(2)}`, 'success');
+        }
+
+        // === 平仓 ===
+        function closePosition(positionId) {
+            const idx = positions.findIndex(p => p.id === positionId);
+            if (idx === -1) return;
+
+            const pos = positions[idx];
+            removePriceLine('position-' + positionId);
+            positions.splice(idx, 1);
+            updatePositionsList();
+            addLog(`✅ 平仓 PnL: ${pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}U`, pos.pnl >= 0 ? 'success' : 'error');
+        }
+
+        // === 撤单 ===
+        function cancelOrder(orderId) {
+            const idx = orders.findIndex(o => o.id === orderId);
+            if (idx === -1) return;
+
+            const order = orders[idx];
+            if (order.status !== 'pending') return;
+
+            order.status = 'cancelled';
+            removePriceLine('order-' + orderId);
+            updateOrdersList();
+            addLog(`🗑️ 已撤单 @ ${order.price.toFixed(2)}`, 'info');
+        }
+
+        // === 更新列表 ===
+        function updatePositionsList() {
+            const containers = isDesktop 
+                ? [document.getElementById('positionsListDesktop')]
+                : [document.getElementById('positionsList')];
+
+            containers.forEach(container => {
+                if (!container) return;
+                
+                if (positions.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无持仓</div>';
+                    return;
+                }
+
+                container.innerHTML = positions.map(pos => {
+                    const pnl = pos.side === 'BUY' 
+                        ? (currentPrice - pos.entryPrice) * pos.quantity
+                        : (pos.entryPrice - currentPrice) * pos.quantity;
+                    pos.pnl = pnl;
+
+                    const pnlColor = pnl >= 0 ? '#26a69a' : '#ef5350';
+                    const posClass = pos.side === 'BUY' ? 'position-long' : 'position-short';
+
+                    return `
+                        <div class="position-item ${posClass}">
+                            <div class="item-header">
+                                <span>${pos.side === 'BUY' ? '做多' : '做空'} @ ${pos.entryPrice.toFixed(2)}</span>
+                                <span style="color: ${pnlColor}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}U</span>
+                            </div>
+                            <div class="item-details">
+                                ${pos.time} | ${pos.quantity.toFixed(6)} BTC
+                                <button class="close-btn" onclick="closePosition(${pos.id})" style="margin-left: 8px;">平仓</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function updateOrdersList() {
+            const containers = isDesktop
+                ? [document.getElementById('ordersListDesktop')]
+                : [document.getElementById('ordersList')];
+
+            containers.forEach(container => {
+                if (!container) return;
+
+                if (orders.length === 0) {
+                    container.innerHTML = '<div class="empty-state">暂无挂单</div>';
+                    return;
+                }
+
+                container.innerHTML = orders.map(order => {
+                    const sideClass = order.side === 'BUY' ? 'order-buy' : 'order-sell';
+                    const statusText = order.status === 'filled' ? '已成交' : 
+                                     order.status === 'cancelled' ? '已撤单' : '等待';
+                    const statusColor = order.status === 'filled' ? '#26a69a' : 
+                                      order.status === 'cancelled' ? '#666' : '#ffa726';
+
+                    let details = `${order.time} | ${order.amount}U`;
+                    if (order.mode === 'conditional' && order.stopPrice) {
+                        details += ` | 触发:${order.stopPrice.toFixed(2)}`;
+                    } else if (order.mode === 'trailing') {
+                        details += ` | 回撤:${order.callbackRate}%`;
+                    }
+
+                    const cancelBtn = order.status === 'pending' 
+                        ? `<button class="cancel-btn" onclick="cancelOrder(${order.id})" style="margin-left: 8px;">撤单</button>`
+                        : '';
+
+                    return `
+                        <div class="order-item ${sideClass}" style="${order.status === 'cancelled' ? 'opacity: 0.5;' : ''}">
+                            <div class="item-header">
+                                <span>${order.side === 'BUY' ? '买' : '卖'} @ ${order.price.toFixed(2)}</span>
+                                <span style="color: ${statusColor}">${statusText}</span>
+                            </div>
+                            <div class="item-details">${details}${cancelBtn}</div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        // === 添加日志 ===
+        function addLog(message, type = 'info') {
+            const containers = isDesktop
+                ? [document.getElementById('logsListDesktop')]
+                : [document.getElementById('logsList')];
+
+            const time = new Date().toLocaleTimeString();
+            const logClass = `log-${type}`;
+
+            containers.forEach(container => {
+                if (!container) return;
+
+                const logItem = document.createElement('div');
+                logItem.className = `log-item ${logClass}`;
+                logItem.textContent = `[${time}] ${message}`;
+                container.insertBefore(logItem, container.firstChild);
+
+                while (container.children.length > 20) {
+                    container.removeChild(container.lastChild);
+                }
+            });
+        }
+
+        // === 绘制价格线 ===
+        function drawOrderLine(order) {
+            const lineKey = 'order-' + order.id;
+            let displayPrice = order.stopPrice || order.activationPrice || order.price;
+
+            const priceLine = candlestickSeries.createPriceLine({
+                price: displayPrice,
+                color: order.side === 'BUY' ? '#26a69a' : '#ef5350',
+                lineWidth: 2,
+                lineStyle: 2,
+                axisLabelVisible: false,
+                title: '',
+            });
+
+            priceLinesMap.set(lineKey, {priceLine, type: 'order', data: order, el: null});
+            renderOrUpdateLabel(lineKey); // 只渲染这一条
+            
+            // 首次下单时显示拖动提示
+            if (!hasShownDragTip && !isDesktop && orders.length <= 1) {
+                hasShownDragTip = true;
+                setTimeout(() => {
+                    addLog('💡 提示：长按左侧标签可拖动改单', 'info');
+                }, 1500);
+            }
+        }
+
+        function drawPositionLine(position) {
+            const lineKey = 'position-' + position.id;
+
+            const priceLine = candlestickSeries.createPriceLine({
+                price: position.entryPrice,
+                color: position.side === 'BUY' ? '#00d4aa' : '#ff9800',
+                lineWidth: 3,
+                lineStyle: 0,
+                axisLabelVisible: false,
+                title: '',
+            });
+
+            priceLinesMap.set(lineKey, {priceLine, type: 'position', data: position, el: null});
+            renderOrUpdateLabel(lineKey); // 只渲染这一条
+        }
+
+        function removePriceLine(lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (item) {
+                if (item.priceLine) {
+                    candlestickSeries.removePriceLine(item.priceLine);
+                }
+                // 删除 DOM 节点
+                if (item.el && item.el.parentNode) {
+                    item.el.parentNode.removeChild(item.el);
+                }
+                priceLinesMap.delete(lineKey);
+            }
+        }
+
+        // === 更新价格线标签 ===
+        // === 创建或更新单条标签（增量渲染）===
+        function renderOrUpdateLabel(lineKey) {
+            const container = document.getElementById('priceLineLabels');
+            const item = priceLinesMap.get(lineKey);
+            if (!item) return;
+
+            const { type, data } = item;
+            let price = (type === 'order')
+                ? (data.stopPrice || data.activationPrice || data.price)
+                : data.entryPrice;
+
+            // 计算标签位置（桌面端需要考虑sidebar宽度）
+            const chartRect = getChartRect();
+            const y = priceToY(price);
+            if (y == null) return; // 价格不在可视范围
+
+            const absTop = (chartRect.top + y - 23) + 'px';
+            const absLeft = (chartRect.left + 10) + 'px'; // 相对于chart容器左边缘 + 10px
+            const sideClass = (type === 'order')
+                ? (data.side === 'BUY' ? 'order-buy' : 'order-sell')
+                : (data.side === 'BUY' ? 'position-long' : 'position-short');
+
+            const text = (() => {
+                if (type === 'order') {
+                    // 只有真正的条件单（STOP类型）才显示[条件]，限价单不显示
+                    const modeTag = (data.mode === 'conditional' && data.orderType === 'STOP') ? '[条件]' :
+                                  data.mode === 'trailing' ? (data.activated ? '[追踪✓]' : '[追踪○]') : '';
+                    return `${modeTag}${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}`;
+                } else {
+                    const pnl = data.pnl || 0;
+                    return `${data.side === 'BUY' ? '多' : '空'} ${price.toFixed(2)} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)})`;
+                }
+            })();
+
+            // 已有 DOM，做增量更新
+            if (item.el) {
+                item.el.style.top = absTop;
+                item.el.style.left = absLeft;
+                const textEl = item.el.querySelector('.pll-text');
+                if (textEl) textEl.textContent = text;
+                return;
+            }
+
+            // 没有 DOM，创建新的
+            const label = document.createElement('div');
+            label.className = `price-line-label ${sideClass}`;
+            label.style.top = absTop;
+            label.style.left = absLeft;
+            label.dataset.lineKey = lineKey;
+            label.innerHTML = `
+                <span class="pll-text">${text}</span>
+                ${type === 'order'
+                    ? `<button class="pll-btn" onclick="event.stopPropagation(); cancelOrder(${data.id})">撤单</button>`
+                    : `<button class="pll-btn" onclick="event.stopPropagation(); closePosition(${data.id})">平仓</button>`}
+            `;
+
+            // 只有订单允许拖拽
+            if (type === 'order') {
+                enableDragPointer(label, lineKey, data);
+            }
+
+            container.appendChild(label);
+            item.el = label; // 缓存节点
+        }
+
+        // === 批量确保所有标签存在 ===
+        function ensureAllLabels() {
+            priceLinesMap.forEach((_, key) => renderOrUpdateLabel(key));
+        }
+
+        // === 更新价格线标签（改为不清空重建）===
+        function updatePriceLineLabels() {
+            ensureAllLabels();
+        }
+
+        // === 启用拖拽 - 使用 Pointer Events + Pointer Capture ===
+        function enableDragPointer(label, lineKey, orderData) {
+            const chartDiv = document.getElementById('chart');
+            let dragging = false;
+            let startPrice = 0;
+            let pointerId = null;
+            let raf = null;
+
+            const onPointerDown = (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                e.preventDefault();
+
+                pointerId = e.pointerId;
+                label.setPointerCapture(pointerId);
+                dragging = true;
+                label.classList.add('dragging');
+                document.body.style.cursor = 'grabbing';
+
+                startPrice = orderData.stopPrice || orderData.activationPrice || orderData.price;
+                chartDiv.style.pointerEvents = 'none';
+                
+                console.log('🎯 拖动开始:', startPrice);
+            };
+
+            const onPointerMove = (e) => {
+                if (!dragging) return;
+
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => {
+                    const rect = getChartRect();
+                    // 把手指的 Y 限制在图表矩形内
+                    const yInChart = clamp(e.clientY, rect.top, rect.bottom) - rect.top;
+
+                    const newPrice = yToPrice(yInChart);
+                    if (!newPrice || newPrice <= 0) return;
+
+                    // 1) 更新订单对象与图表价格线（不触发全量重绘）
+                    fastUpdateOrderPrice(orderData, newPrice, lineKey);
+
+                    // 2) 直接移动当前 label（避免全量重排）
+                    const y = priceToY(newPrice);
+                    if (y != null) {
+                        label.style.top = (rect.top + y - 23) + 'px'; // 重新计算top位置
+                        // 同步文本 - 只有STOP类型的条件单才显示[条件]
+                        const modeTag = (orderData.mode === 'conditional' && orderData.orderType === 'STOP') ? '[条件]' :
+                                      orderData.mode === 'trailing' ? (orderData.activated ? '[追踪✓]' : '[追踪○]') : '';
+                        const textEl = label.querySelector('.pll-text');
+                        if (textEl) {
+                            textEl.textContent = `${modeTag}${orderData.side === 'BUY' ? '买' : '卖'} ${newPrice.toFixed(2)}`;
+                        }
+                    }
+                });
+            };
+
+            const onPointerUp = (e) => {
+                if (!dragging) return;
+                dragging = false;
+
+                if (raf) { cancelAnimationFrame(raf); raf = null; }
+                label.releasePointerCapture(pointerId);
+                label.classList.remove('dragging');
+                document.body.style.cursor = '';
+                chartDiv.style.pointerEvents = 'auto';
+
+                const np = orderData.stopPrice || orderData.activationPrice || orderData.price;
+                if (Math.abs(np - startPrice) > 0.5) {
+                    addLog(`✅ 改单: ${orderData.side === 'BUY' ? '买' : '卖'} ${startPrice.toFixed(2)} → ${np.toFixed(2)}`, 'success');
+                    if (navigator.vibrate) navigator.vibrate(30);
+                }
+                updateOrdersList();
+                
+                console.log('✅ 拖动结束');
+            };
+
+            label.addEventListener('pointerdown', onPointerDown);
+            label.addEventListener('pointermove', onPointerMove);
+            label.addEventListener('pointerup', onPointerUp);
+            label.addEventListener('pointercancel', onPointerUp);
+        }
+
+        // === 快速更新订单价格（单条，不重建）===
+        function fastUpdateOrderPrice(order, newPrice, lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (!item || !item.priceLine) return;
+
+            // 更新数据对象
+            order.price = newPrice;
+            if (order.stopPrice) order.stopPrice = newPrice;
+            if (order.activationPrice) order.activationPrice = newPrice;
+
+            if (order.limitPrice && order.orderType === 'STOP') {
+                const offset = order.priceOffset || 0;
+                order.limitPrice = order.side === 'BUY'
+                    ? newPrice * (1 + offset / 100)
+                    : newPrice * (1 - offset / 100);
+            }
+
+            // 更新图表上的 PriceLine
+            item.priceLine.applyOptions({ price: newPrice });
+        }
+
+        // === 更新订单价格（旧接口，保持兼容）===
+        function updateOrderPrice(order, newPrice, lineKey) {
+            const item = priceLinesMap.get(lineKey);
+            if (!item || !item.priceLine) return;
+
+            order.price = newPrice;
+            if (order.stopPrice) order.stopPrice = newPrice;
+            if (order.activationPrice) order.activationPrice = newPrice;
+            if (order.limitPrice && order.orderType === 'STOP') {
+                const offset = order.priceOffset || 0;
+                order.limitPrice = order.side === 'BUY'
+                    ? newPrice * (1 + offset / 100)
+                    : newPrice * (1 - offset / 100);
+            }
+
+            item.priceLine.applyOptions({ price: newPrice });
+            // 不再调用 updatePriceLineLabels()，由调用者决定是否更新
+        }
+
+        // === 检查订单触发 ===
+        function checkOrderTriggers() {
+            let triggered = false;
+
+            orders.forEach(order => {
+                if (order.status !== 'pending') return;
+
+                if (order.mode === 'normal') {
+                    if ((order.side === 'BUY' && currentPrice <= order.price) ||
+                        (order.side === 'SELL' && currentPrice >= order.price)) {
+                        order.status = 'filled';
+                        triggered = true;
+                        removePriceLine('order-' + order.id);
+                        createPosition(order.side, order.price, order.amount);
+                    }
+                } else if (order.mode === 'conditional') {
+                    if (order.orderType === 'LIMIT') {
+                        if ((order.side === 'BUY' && currentPrice <= order.limitPrice) ||
+                            (order.side === 'SELL' && currentPrice >= order.limitPrice)) {
+                            order.status = 'filled';
+                            triggered = true;
+                            removePriceLine('order-' + order.id);
+                            createPosition(order.side, order.limitPrice, order.amount);
+                        }
+                    } else {
+                        if ((order.side === 'BUY' && currentPrice >= order.stopPrice) ||
+                            (order.side === 'SELL' && currentPrice <= order.stopPrice)) {
+                            order.status = 'filled';
+                            triggered = true;
+                            removePriceLine('order-' + order.id);
+                            createPosition(order.side, order.limitPrice, order.amount);
+                        }
+                    }
+                } else if (order.mode === 'trailing') {
+                    if (order.side === 'BUY') {
+                        if (!order.activated) {
+                            if (currentPrice <= order.activationPrice) {
+                                order.activated = true;
+                                order.lowestPrice = currentPrice;
+                            }
+                        } else {
+                            order.lowestPrice = Math.min(order.lowestPrice, currentPrice);
+                            if (currentPrice >= order.lowestPrice * (1 + order.callbackRate / 100)) {
+                                order.status = 'filled';
+                                triggered = true;
+                                removePriceLine('order-' + order.id);
+                                createPosition(order.side, currentPrice, order.amount);
+                            }
+                        }
+                    } else {
+                        if (!order.activated) {
+                            if (currentPrice >= order.activationPrice) {
+                                order.activated = true;
+                                order.highestPrice = currentPrice;
+                            }
+                        } else {
+                            order.highestPrice = Math.max(order.highestPrice, currentPrice);
+                            if (currentPrice <= order.highestPrice * (1 - order.callbackRate / 100)) {
+                                order.status = 'filled';
+                                triggered = true;
+                                removePriceLine('order-' + order.id);
+                                createPosition(order.side, currentPrice, order.amount);
+                            }
+                        }
+                    }
                 }
             });
 
-            // 窗口大小调整
-            window.addEventListener('resize', () => {
-                chart.applyOptions({
-                    width: document.getElementById('chart').clientWidth,
-                    height: document.getElementById('chart').clientHeight,
-                });
-                updatePriceLineLabels();
-            });
-            
-            // 时间轴变化时更新标签位置
-            chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-                updatePriceLineLabels();
-            });
+            if (triggered) updateOrdersList();
         }
 
         // === 加载K线数据 ===
         async function loadKlineData() {
             try {
-                const config = API_CONFIG[currentExchange];
-                addLog(`正在从${config.name}加载K线数据...`, 'info');
+                addLog('正在加载 Hyperliquid K线数据...', 'info');
                 
-                let klineData;
+                const now = Date.now();
+                const endTime = now;
+                const startTime = now - (300 * 60 * 1000); // 300分钟前
                 
-                if (currentExchange === 'hyperliquid') {
-                    // Hyperliquid REST API
-                    const now = Date.now();
-                    const startTime = now - (500 * 60 * 1000); // 500分钟前
-                    
-                    const payload = {
-                        type: 'candleSnapshot',
-                        req: {
-                            coin: config.coin,
-                            interval: '1m',
-                            startTime: startTime,
-                            endTime: now
-                        }
-                    };
-                    
-                    const response = await fetch(config.rest, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const data = await response.json();
-                    
-                    // Hyperliquid 返回格式: [{t: timestamp_ms, o: "67234.0", ...}]
-                    klineData = data.map(item => ({
-                        time: parseInt(item.t) / 1000,
-                        open: parseFloat(item.o),
-                        high: parseFloat(item.h),
-                        low: parseFloat(item.l),
-                        close: parseFloat(item.c),
-                    }));
-                } else if (currentExchange === 'binance') {
-                    const response = await fetch(config.kline);
-                    const data = await response.json();
-                    
-                    klineData = data.map(item => ({
-                        time: parseInt(item[0]) / 1000,
-                        open: parseFloat(item[1]),
-                        high: parseFloat(item[2]),
-                        low: parseFloat(item[3]),
-                        close: parseFloat(item[4]),
-                    }));
-                }
-
-                candlestickSeries.setData(klineData);
-                
-                // 更新当前价格
-                const lastCandle = klineData[klineData.length - 1];
-                currentPrice = lastCandle.close;
-                document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                
-                addLog(`${config.name} K线数据加载成功`, 'success');
-                
-                // 启动实时更新
-                startRealtimeUpdates();
-                
-            } catch (error) {
-                addLog('K线数据加载失败: ' + error.message, 'error');
-                console.error('K线数据加载错误:', error);
-            }
-        }
-        
-        // === 启动实时更新 ===
-        function startRealtimeUpdates() {
-            // 关闭现有连接
-            if (wsConnection) {
-                wsConnection.close();
-                wsConnection = null;
-            }
-            
-            const config = API_CONFIG[currentExchange];
-            
-            if (currentExchange === 'hyperliquid') {
-                connectHyperliquidWS();
-            } else if (currentExchange === 'binance') {
-                connectBinanceWS();
-            }
-        }
-        
-        // === 币安WebSocket连接 ===
-        function connectBinanceWS() {
-            try {
-                wsConnection = new WebSocket(API_CONFIG.binance.ws);
-                
-                wsConnection.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.k) {
-                        const candle = {
-                            time: parseInt(data.k.t) / 1000,
-                            open: parseFloat(data.k.o),
-                            high: parseFloat(data.k.h),
-                            low: parseFloat(data.k.l),
-                            close: parseFloat(data.k.c),
-                        };
-                        
-                        candlestickSeries.update(candle);
-                        currentPrice = candle.close;
-                        document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                        
-                        // 更新仓位PnL
-                        updatePositionsList();
-                        
-                        // 更新K线图上的标签
-                        updatePriceLineLabels();
-                        
-                        // 检查订单触发
-                        checkOrderTriggers();
+                const payload = {
+                    type: 'candleSnapshot',
+                    req: {
+                        coin: API_CONFIG.hyperliquid.coin,
+                        interval: '1m',
+                        startTime: startTime,
+                        endTime: endTime
                     }
                 };
+
+                const response = await fetch(API_CONFIG.hyperliquid.rest, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
                 
-                wsConnection.onerror = (error) => {
-                    console.error('WebSocket错误:', error);
-                    addLog('WebSocket连接异常，切换到轮询模式', 'error');
-                    setInterval(updatePricePolling, 3000);
-                };
+                const data = await response.json();
                 
-                addLog('WebSocket连接成功，实时更新已启动', 'success');
+                if (!data || data.length === 0) {
+                    throw new Error('没有返回K线数据');
+                }
+
+                // Hyperliquid 返回格式: [{t: timestamp_ms, o: "67234.0", h: "67300.0", l: "67200.0", c: "67250.0", v: "123.45", n: 100}]
+                const klineData = data.map(item => ({
+                    time: parseInt(item.t) / 1000,
+                    open: parseFloat(item.o),
+                    high: parseFloat(item.h),
+                    low: parseFloat(item.l),
+                    close: parseFloat(item.c),
+                }));
+
+                candlestickSeries.setData(klineData);
+                currentPrice = klineData[klineData.length - 1].close;
+                updateCurrentPrice();
+
+                addLog('✅ Hyperliquid K线数据加载成功', 'success');
+                startWebSocket();
             } catch (error) {
-                console.error('WebSocket连接失败:', error);
-                setInterval(updatePricePolling, 3000);
+                addLog('❌ 数据加载失败: ' + error.message, 'error');
+                console.error('K线加载错误:', error);
             }
         }
-        
-        // === Hyperliquid WebSocket连接 ===
-        function connectHyperliquidWS() {
+
+        // === 更新当前价格显示 ===
+        function updateCurrentPrice() {
+            const priceElement = document.getElementById('currentPriceHeader');
+            if (currentPrice > 0) {
+                priceElement.textContent = currentPrice.toFixed(2);
+                priceElement.style.color = '#00d4aa';
+            } else {
+                priceElement.textContent = '加载中...';
+                priceElement.style.color = '#9ca3b0';
+            }
+        }
+
+        // === WebSocket实时更新 ===
+        function startWebSocket() {
             try {
                 wsConnection = new WebSocket(API_CONFIG.hyperliquid.ws);
-                
+
                 wsConnection.onopen = () => {
                     console.log('✅ Hyperliquid WebSocket 已连接');
                     
@@ -742,9 +1736,9 @@
                         }
                     }));
                     
-                    addLog('Hyperliquid WebSocket连接成功', 'success');
+                    addLog('✅ Hyperliquid 实时连接成功', 'success');
                 };
-                
+
                 wsConnection.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
@@ -759,13 +1753,13 @@
                                 low: parseFloat(item.l),
                                 close: parseFloat(item.c),
                             };
-                            
+
                             candlestickSeries.update(candle);
                             currentPrice = candle.close;
-                            document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
-                            
+                            updateCurrentPrice();
+
                             updatePositionsList();
-                            updatePriceLineLabels();
+                            ensureAllLabels();
                             checkOrderTriggers();
                         }
                         
@@ -776,723 +1770,138 @@
                                 const price = parseFloat(mids[API_CONFIG.hyperliquid.coin]);
                                 if (price > 0) {
                                     currentPrice = price;
-                                    document.getElementById('currentPrice').textContent = currentPrice.toFixed(2);
+                                    updateCurrentPrice();
                                     updatePositionsList();
-                                    updatePriceLineLabels();
+                                    ensureAllLabels();
                                     checkOrderTriggers();
                                 }
                             }
                         }
                     } catch (error) {
-                        console.error('Hyperliquid WebSocket 消息处理错误:', error);
+                        console.error('WebSocket 消息处理错误:', error);
                     }
                 };
-                
+
                 wsConnection.onerror = (error) => {
-                    console.error('Hyperliquid WebSocket错误:', error);
-                    addLog('WebSocket连接异常', 'error');
+                    console.error('WebSocket 错误:', error);
+                    addLog('❌ WebSocket 连接错误', 'error');
                 };
-                
+
                 wsConnection.onclose = () => {
-                    console.log('Hyperliquid WebSocket 连接关闭，5秒后重连...');
-                    addLog('连接断开，正在重连...', 'info');
-                    setTimeout(connectHyperliquidWS, 5000);
+                    console.log('WebSocket 连接关闭，5秒后重连...');
+                    addLog('⚠️ 连接断开，正在重连...', 'info');
+                    setTimeout(startWebSocket, 5000);
                 };
             } catch (error) {
-                console.error('Hyperliquid WebSocket连接失败:', error);
-                addLog('WebSocket连接失败', 'error');
+                addLog('❌ WebSocket连接失败', 'error');
+                console.error('WebSocket 错误:', error);
             }
         }
 
-        // === 切换交易所 ===
-        function switchExchange() {
-            const selector = document.getElementById('exchangeSelector');
-            currentExchange = selector.value;
-            
-            addLog(`切换到${API_CONFIG[currentExchange].name}`, 'info');
-            
-            // 重新加载数据
-            loadKlineData();
-        }
-
-        // === 切换下单模式 ===
+        // === 切换模式 ===
         function cycleMode() {
-            const modes = ['normal', 'conditional', 'trailing'];
-            const currentIndex = modes.indexOf(orderMode);
-            orderMode = modes[(currentIndex + 1) % modes.length];
-            updateModeUI();
-            
-            const modeNames = {
-                'normal': '普通模式',
-                'conditional': '条件单模式',
-                'trailing': '跟踪止损模式'
-            };
-            addLog(`切换到 ${modeNames[orderMode]}`, 'info');
-        }
+            const modes = ['quick', 'normal', 'conditional', 'trailing'];
+            const idx = modes.indexOf(orderMode);
+            orderMode = modes[(idx + 1) % modes.length];
 
-        // === 更新模式UI ===
-        function updateModeUI() {
             const btn = document.getElementById('modeBtn');
             const offsetControl = document.getElementById('offsetControl');
             const callbackControl = document.getElementById('callbackControl');
-            
-            // 重置所有样式
+
             btn.className = 'mode-btn';
             offsetControl.classList.remove('active');
             callbackControl.classList.remove('active');
-            
-            switch(orderMode) {
-                case 'normal':
-                    btn.classList.add('mode-normal');
-                    btn.textContent = '普通';
-                    break;
-                case 'conditional':
-                    btn.classList.add('mode-conditional');
-                    btn.textContent = '条件单';
-                    offsetControl.classList.add('active');
-                    break;
-                case 'trailing':
-                    btn.classList.add('mode-trailing');
-                    btn.textContent = '追踪止损';
-                    callbackControl.classList.add('active');
-                    break;
-            }
-        }
 
-        // === 处理K线点击（左键=买入，右键=卖出）===
-        function handleChartClick(clickPrice, isRightClick = false) {
-            const price = parseFloat(clickPrice.toFixed(2));
-            // 左键=买入，右键=卖出
-            const side = isRightClick ? 'SELL' : 'BUY';
-            const sideText = side === 'BUY' ? '买入' : '卖出';
-            
-            let order = {
-                id: orderIdCounter++,
-                side: side,
-                price: price,
-                amount: currentAmount,
-                mode: orderMode,
-                status: 'pending',
-                time: new Date().toLocaleTimeString()
-            };
-            
-            // 根据模式添加特定参数
-            switch(orderMode) {
-                case 'normal':
-                    // 普通模式：检查是否直接成交
-                    if (side === 'BUY' && price >= currentPrice) {
-                        order.status = 'filled';
-                        addLog(`✅ ${sideText}单直接成交 @ ${price} (数量: ${currentAmount}U)`, 'success');
-                        createPosition(side, price, currentAmount);
-                    } else if (side === 'SELL' && price <= currentPrice) {
-                        order.status = 'filled';
-                        addLog(`✅ ${sideText}单直接成交 @ ${price} (数量: ${currentAmount}U)`, 'success');
-                        createPosition(side, price, currentAmount);
-                    } else {
-                        addLog(`📝 ${sideText}挂单 @ ${price} (数量: ${currentAmount}U)`, 'info');
-                        // 在K线图上绘制挂单价格线
-                        drawOrderLine(order);
-                    }
-                    break;
-                    
-                case 'conditional':
-                    priceOffset = parseFloat(document.getElementById('offsetInput').value) || 0;
-                    order.priceOffset = priceOffset;
-                    
-                    // 条件单模式逻辑：
-                    // 触发价 = 点击价格（固定）
-                    // 下单价 = 触发价 × (1 ± offset%)
-                    // 买入：点击价 < 当前价 = 限价挂单，点击价 > 当前价 = 条件单（突破买入）
-                    // 卖出：点击价 > 当前价 = 限价挂单，点击价 < 当前价 = 条件单（跌破卖出）
-                    
-                    order.stopPrice = price; // 触发价（点击价）
-                    
-                    if (side === 'BUY') {
-                        if (price < currentPrice) {
-                            // 买入限价挂单
-                            order.orderType = 'LIMIT';
-                            order.limitPrice = price;
-                            addLog(`📝 ${sideText}限价挂单 @ ${price} (数量: ${currentAmount}U)`, 'info');
-                        } else {
-                            // 买入条件单（突破买入）
-                            order.orderType = 'STOP';
-                            order.limitPrice = price * (1 + priceOffset / 100); // 触发后的下单价
-                            addLog(`📝 条件单 ${sideText} (触发: ${price}, 下单: ${order.limitPrice.toFixed(2)}, Offset: ${priceOffset}%)`, 'info');
-                        }
-                    } else {
-                        if (price > currentPrice) {
-                            // 卖出限价挂单
-                            order.orderType = 'LIMIT';
-                            order.limitPrice = price;
-                            addLog(`📝 ${sideText}限价挂单 @ ${price} (数量: ${currentAmount}U)`, 'info');
-                        } else {
-                            // 卖出条件单（跌破卖出）
-                            order.orderType = 'STOP';
-                            order.limitPrice = price * (1 - priceOffset / 100); // 触发后的下单价
-                            addLog(`📝 条件单 ${sideText} (触发: ${price}, 下单: ${order.limitPrice.toFixed(2)}, Offset: ${priceOffset}%)`, 'info');
-                        }
-                    }
-                    
-                    drawOrderLine(order);
-                    break;
-                    
-                case 'trailing':
-                    callbackRate = parseFloat(document.getElementById('callbackSelect').value) || 1;
-                    order.callbackRate = callbackRate;
-                    order.activationPrice = price; // 激活价（点击价）
-                    order.activated = false; // 追踪是否已激活
-                    
-                    // 根据激活价和当前价的关系判断是否立即激活
-                    if (side === 'BUY') {
-                        // 买入追踪：激活价 >= 当前价则立即激活
-                        if (price >= currentPrice) {
-                            order.activated = true;
-                            order.lowestPrice = currentPrice; // 从当前价开始追踪
-                            addLog(`📝 追踪止损 ${sideText} (立即激活, 回撤: ${callbackRate}%)`, 'info');
-                        } else {
-                            order.lowestPrice = price; // 从激活价开始追踪
-                            addLog(`📝 追踪止损 ${sideText} (激活价: ${price}, 回撤: ${callbackRate}%)`, 'info');
-                        }
-                    } else {
-                        // 卖出追踪：激活价 <= 当前价则立即激活
-                        if (price <= currentPrice) {
-                            order.activated = true;
-                            order.highestPrice = currentPrice; // 从当前价开始追踪
-                            addLog(`📝 追踪止损 ${sideText} (立即激活, 回撤: ${callbackRate}%)`, 'info');
-                        } else {
-                            order.highestPrice = price; // 从激活价开始追踪
-                            addLog(`📝 追踪止损 ${sideText} (激活价: ${price}, 回撤: ${callbackRate}%)`, 'info');
-                        }
-                    }
-                    
-                    drawOrderLine(order);
-                    break;
-            }
-            
-            orders.push(order);
-            updateOrdersList();
-        }
-        
-        // === 创建仓位 ===
-        function createPosition(side, price, amount) {
-            const position = {
-                id: positionIdCounter++,
-                side: side,
-                entryPrice: price,
-                amount: amount,
-                quantity: amount / price,
-                time: new Date().toLocaleTimeString(),
-                pnl: 0
-            };
-            
-            positions.push(position);
-            updatePositionsList();
-            drawPositionLine(position);
-            
-            const sideText = side === 'BUY' ? '做多' : '做空';
-            addLog(`📊 开仓成功: ${sideText} @ ${price.toFixed(2)} (数量: ${amount}U)`, 'success');
-        }
-        
-        // === 平仓功能 ===
-        function closePosition(positionId) {
-            const posIndex = positions.findIndex(p => p.id === positionId);
-            if (posIndex === -1) return;
-            
-            const position = positions[posIndex];
-            const sideText = position.side === 'BUY' ? '做多' : '做空';
-            const pnl = position.pnl;
-            
-            // 移除K线图上的价格线
-            removePriceLine('position-' + positionId);
-            
-            // 移除仓位
-            positions.splice(posIndex, 1);
-            updatePositionsList();
-            
-            addLog(`✅ 平仓成功: ${sideText} PnL: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}U`, pnl >= 0 ? 'success' : 'error');
-        }
-        
-        // === 更新仓位列表 ===
-        function updatePositionsList() {
-            const container = document.getElementById('positionsList');
-            
-            if (positions.length === 0) {
-                container.innerHTML = '<div class="empty-state">暂无持仓</div>';
-                return;
-            }
-            
-            container.innerHTML = positions.map(pos => {
-                const posClass = pos.side === 'BUY' ? 'position-long' : 'position-short';
-                const sideText = pos.side === 'BUY' ? '做多' : '做空';
-                
-                // 计算实时PnL
-                let pnl;
-                if (pos.side === 'BUY') {
-                    pnl = (currentPrice - pos.entryPrice) * pos.quantity;
-                } else {
-                    pnl = (pos.entryPrice - currentPrice) * pos.quantity;
-                }
-                pos.pnl = pnl;
-                
-                const pnlColor = pnl >= 0 ? '#26a69a' : '#ef5350';
-                
-                return `
-                    <div class="position-item ${posClass}">
-                        <div class="position-header">
-                            <span>${sideText} @ ${pos.entryPrice.toFixed(2)}</span>
-                            <span style="display: flex; align-items: center;">
-                                <span class="position-pnl" style="color: ${pnlColor}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}U</span>
-                                <button class="close-btn" onclick="closePosition(${pos.id})">平仓</button>
-                            </span>
-                        </div>
-                        <div class="position-details">${pos.time} | 数量: ${pos.quantity.toFixed(6)} BTC</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // === 更新挂单列表 ===
-        function updateOrdersList() {
-            const container = document.getElementById('ordersList');
-            
-            if (orders.length === 0) {
-                container.innerHTML = '<div class="empty-state">暂无挂单<br/>左键=买入，右键=卖出</div>';
-                return;
-            }
-            
-            container.innerHTML = orders.map(order => {
-                const sideClass = order.side === 'BUY' ? 'order-buy' : 'order-sell';
-                const sideText = order.side === 'BUY' ? '买入' : '卖出';
-                const statusText = order.status === 'filled' ? '已成交' : 
-                                 order.status === 'cancelled' ? '已撤单' : '等待触发';
-                const statusColor = order.status === 'filled' ? '#26a69a' : 
-                                  order.status === 'cancelled' ? '#666' : '#ffa726';
-                
-                let details = `${order.time} | ${order.amount}U`;
-                
-                if (order.mode === 'conditional') {
-                    if (order.orderType === 'STOP' && order.stopPrice) {
-                        details += ` | 触发: ${order.stopPrice.toFixed(2)} → 下单: ${order.limitPrice.toFixed(2)}`;
-                    } else if (order.orderType === 'LIMIT') {
-                        details += ` | 限价`;
-                    }
-                } else if (order.mode === 'trailing') {
-                    const activatedText = order.activated ? '已激活' : '等待激活';
-                    details += ` | 回撤: ${order.callbackRate}% | ${activatedText}`;
-                }
-                
-                // 只有pending状态的订单才显示撤单按钮
-                const cancelBtn = order.status === 'pending' ? 
-                    `<button onclick="cancelOrder(${order.id})" style="background: #ef5350; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; margin-left: 8px;">撤单</button>` : '';
-                
-                return `
-                    <div class="order-item ${sideClass}" id="order-${order.id}" style="${order.status === 'cancelled' ? 'opacity: 0.5;' : ''}">
-                        <div class="order-header">
-                            <span>${sideText} @ ${order.price.toFixed(2)}</span>
-                            <span style="display: flex; align-items: center;">
-                                <span style="color: ${statusColor}">${statusText}</span>
-                                ${cancelBtn}
-                            </span>
-                        </div>
-                        <div class="order-details">${details}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        // === 撤单功能 ===
-        function cancelOrder(orderId) {
-            const orderIndex = orders.findIndex(o => o.id === orderId);
-            if (orderIndex === -1) return;
-            
-            const order = orders[orderIndex];
-            if (order.status !== 'pending') {
-                addLog('只能撤销等待中的订单', 'error');
-                return;
-            }
-            
-            order.status = 'cancelled';
-            
-            // 移除K线图上的价格线
-            removePriceLine('order-' + orderId);
-            
-            updateOrdersList();
-            
-            const sideText = order.side === 'BUY' ? '买入' : '卖出';
-            addLog(`🗑️ 已撤单: ${sideText} @ ${order.price.toFixed(2)}`, 'info');
-        }
-        
-        // === 在K线图上绘制订单价格线 ===
-        function drawOrderLine(order) {
-            const lineKey = 'order-' + order.id;
-            // 显示价格：条件单显示触发价(stopPrice)，追踪显示激活价，其他显示下单价
-            let displayPrice;
-            if (order.mode === 'conditional' && order.orderType === 'STOP') {
-                displayPrice = order.stopPrice; // 条件单显示触发价
-            } else if (order.activationPrice) {
-                displayPrice = order.activationPrice; // 追踪显示激活价
+            if (orderMode === 'quick') {
+                btn.classList.add('mode-quick');
+                btn.textContent = '快捷';
+            } else if (orderMode === 'normal') {
+                btn.classList.add('mode-normal');
+                btn.textContent = '普通';
+            } else if (orderMode === 'conditional') {
+                btn.classList.add('mode-conditional');
+                btn.textContent = '条件单';
+                offsetControl.classList.add('active');
             } else {
-                displayPrice = order.limitPrice || order.price; // 普通/限价显示下单价
+                btn.classList.add('mode-trailing');
+                btn.textContent = '追踪止损';
+                callbackControl.classList.add('active');
             }
-            
-            const priceLine = candlestickSeries.createPriceLine({
-                price: displayPrice,
-                color: order.side === 'BUY' ? '#26a69a' : '#ef5350',
-                lineWidth: 2,
-                lineStyle: 2, // 虚线
-                axisLabelVisible: false, // 隐藏右侧标签，使用自定义左侧标签
-                title: '',
-            });
-            
-            priceLinesMap.set(lineKey, {priceLine, type: 'order', data: order});
-            updatePriceLineLabels();
-        }
-        
-        // === 在K线图上绘制仓位价格线 ===
-        function drawPositionLine(position) {
-            const lineKey = 'position-' + position.id;
-            
-            const priceLine = candlestickSeries.createPriceLine({
-                price: position.entryPrice,
-                color: position.side === 'BUY' ? '#00d4aa' : '#ff9800',
-                lineWidth: 3,
-                lineStyle: 0, // 实线
-                axisLabelVisible: false, // 隐藏右侧标签，使用自定义左侧标签
-                title: '',
-            });
-            
-            priceLinesMap.set(lineKey, {priceLine, type: 'position', data: position});
-            updatePriceLineLabels();
-        }
-        
-        // === 移除价格线 ===
-        function removePriceLine(lineKey) {
-            const item = priceLinesMap.get(lineKey);
-            if (item && item.priceLine) {
-                candlestickSeries.removePriceLine(item.priceLine);
-                priceLinesMap.delete(lineKey);
-                updatePriceLineLabels();
-            }
-        }
-        
-        // === 更新价格线标签（左侧显示，带操作按钮，支持拖动）===
-        function updatePriceLineLabels() {
-            const container = document.getElementById('priceLineLabels');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            priceLinesMap.forEach((item, key) => {
-                const data = item.data;
-                const type = item.type;
-                
-                let price, labelText, actionBtn, labelClass;
-                
-                if (type === 'order') {
-                    // 确定显示价格
-                    if (data.mode === 'conditional' && data.orderType === 'STOP') {
-                        price = data.stopPrice; // 条件单显示触发价
-                    } else if (data.activationPrice) {
-                        price = data.activationPrice; // 追踪显示激活价
-                    } else {
-                        price = data.limitPrice || data.price; // 普通/限价显示下单价
-                    }
-                    
-                    // 显示订单类型标识
-                    let modeTag = '';
-                    if (data.mode === 'conditional' && data.orderType === 'STOP') {
-                        // 条件单显示触发价和下单价
-                        modeTag = '[条件] ';
-                        const limitPriceText = data.limitPrice ? `→${data.limitPrice.toFixed(2)}` : '';
-                        labelText = `${modeTag}${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}${limitPriceText}`;
-                    } else if (data.mode === 'trailing') {
-                        // 追踪止损显示激活状态
-                        const statusTag = data.activated ? '✓' : '○';
-                        modeTag = `[追踪${statusTag}] `;
-                        labelText = `${modeTag}${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}`;
-                    } else {
-                        // 普通模式或限价单
-                        labelText = `${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}`;
-                    }
-                    
-                    actionBtn = `<button onclick="event.stopPropagation(); cancelOrder(${data.id})">撤单</button>`;
-                    labelClass = data.side === 'BUY' ? 'order-buy' : 'order-sell';
-                } else {
-                    price = data.entryPrice;
-                    const pnl = data.pnl || 0;
-                    const pnlText = `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`;
-                    labelText = `${data.side === 'BUY' ? '多' : '空'} ${price.toFixed(2)} (${pnlText})`;
-                    actionBtn = `<button onclick="event.stopPropagation(); closePosition(${data.id})">平仓</button>`;
-                    labelClass = data.side === 'BUY' ? 'position-long' : 'position-short';
-                }
-                
-                // 计算Y坐标
-                const yCoord = candlestickSeries.priceToCoordinate(price);
-                if (yCoord === null) return;
-                
-                const label = document.createElement('div');
-                label.className = `price-line-label ${labelClass}`;
-                label.style.top = (yCoord - 15) + 'px';
-                label.innerHTML = `<span>${labelText}</span>${actionBtn}`;
-                label.dataset.key = key;
-                label.dataset.type = type;
-                
-                // 只有挂单才可以拖动（仓位不允许拖动改价）
-                if (type === 'order') {
-                    label.title = '拖动可改单';
-                    enableDragToModify(label, key, data);
-                }
-                
-                container.appendChild(label);
-            });
-        }
-        
-        // === 启用拖动改单功能 ===
-        function enableDragToModify(labelElement, lineKey, orderData) {
-            let isDragging = false;
-            let startY = 0;
-            let startPrice = 0;
-            
-            labelElement.addEventListener('mousedown', function(e) {
-                // 如果点击的是按钮，不触发拖动
-                if (e.target.tagName === 'BUTTON') return;
-                
-                isDragging = true;
-                startY = e.clientY;
-                
-                // 记录拖动开始时的价格
-                if (orderData.mode === 'conditional' && orderData.orderType === 'STOP') {
-                    startPrice = orderData.stopPrice;
-                } else if (orderData.activationPrice) {
-                    startPrice = orderData.activationPrice;
-                } else {
-                    startPrice = orderData.limitPrice || orderData.price;
-                }
-                
-                labelElement.classList.add('dragging');
-                e.preventDefault();
-                
-                const onMouseMove = (e) => {
-                    if (!isDragging) return;
-                    
-                    const chartDiv = document.getElementById('chart');
-                    const rect = chartDiv.getBoundingClientRect();
-                    const y = e.clientY - rect.top;
-                    
-                    // 转换Y坐标为价格
-                    const newPrice = candlestickSeries.coordinateToPrice(y);
-                    if (!newPrice || newPrice <= 0) return;
-                    
-                    // 更新订单价格和价格线
-                    updateOrderPrice(orderData, newPrice, lineKey);
-                };
-                
-                const onMouseUp = () => {
-                    if (isDragging) {
-                        isDragging = false;
-                        labelElement.classList.remove('dragging');
-                        
-                        const sideText = orderData.side === 'BUY' ? '买入' : '卖出';
-                        let newPrice;
-                        if (orderData.mode === 'conditional' && orderData.orderType === 'STOP') {
-                            newPrice = orderData.stopPrice;
-                        } else if (orderData.activationPrice) {
-                            newPrice = orderData.activationPrice;
-                        } else {
-                            newPrice = orderData.limitPrice || orderData.price;
-                        }
-                        
-                        addLog(`📝 改单: ${sideText} ${startPrice.toFixed(2)} → ${newPrice.toFixed(2)}`, 'info');
-                        
-                        updateOrdersList();
-                    }
-                    
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                };
-                
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-        }
-        
-        // === 更新订单价格（根据模式不同逻辑不同）===
-        function updateOrderPrice(order, newPrice, lineKey) {
-            const item = priceLinesMap.get(lineKey);
-            if (!item || !item.priceLine) return;
-            
-            switch(order.mode) {
-                case 'normal':
-                    // 普通模式：直接改价格
-                    order.price = newPrice;
-                    item.priceLine.applyOptions({ price: newPrice });
-                    break;
-                    
-                case 'conditional':
-                    // 条件单模式：改触发价或限价
-                    if (order.orderType === 'STOP') {
-                        // 条件单：改触发价，同时重新计算下单价
-                        order.stopPrice = newPrice;
-                        order.price = newPrice;
-                        const offset = order.priceOffset || 0;
-                        order.limitPrice = order.side === 'BUY' 
-                            ? newPrice * (1 + offset / 100)
-                            : newPrice * (1 - offset / 100);
-                        item.priceLine.applyOptions({ price: newPrice });
-                    } else {
-                        // 限价单：直接改价格
-                        order.limitPrice = newPrice;
-                        order.price = newPrice;
-                        item.priceLine.applyOptions({ price: newPrice });
-                    }
-                    break;
-                    
-                case 'trailing':
-                    // 追踪止损模式：改激活价，重置追踪状态
-                    order.activationPrice = newPrice;
-                    order.price = newPrice;
-                    order.activated = false; // 重置激活状态
-                    
-                    // 重新判断是否立即激活
-                    if (order.side === 'BUY') {
-                        if (newPrice >= currentPrice) {
-                            order.activated = true;
-                            order.lowestPrice = currentPrice;
-                        } else {
-                            order.lowestPrice = newPrice;
-                        }
-                    } else {
-                        if (newPrice <= currentPrice) {
-                            order.activated = true;
-                            order.highestPrice = currentPrice;
-                        } else {
-                            order.highestPrice = newPrice;
-                        }
-                    }
-                    
-                    item.priceLine.applyOptions({ price: newPrice });
-                    break;
-            }
-            
-            // 更新标签位置和文字
-            updatePriceLineLabels();
+
+            updateHeaderTip(); // 更新提示文字
+            addLog(`切换到${btn.textContent}模式`, 'info');
         }
 
-        // === 检查订单触发 ===
-        function checkOrderTriggers() {
-            let triggered = false;
-            
-            orders.forEach(order => {
-                if (order.status !== 'pending') return;
-                
-                switch(order.mode) {
-                    case 'normal':
-                        // 普通挂单：价格到达即成交
-                        if ((order.side === 'BUY' && currentPrice <= order.price) ||
-                            (order.side === 'SELL' && currentPrice >= order.price)) {
-                            order.status = 'filled';
-                            triggered = true;
-                            removePriceLine('order-' + order.id);
-                            createPosition(order.side, order.price, order.amount);
-                            addLog(`✅ ${order.side === 'BUY' ? '买入' : '卖出'}单成交 @ ${order.price}`, 'success');
-                        }
-                        break;
-                        
-                    case 'conditional':
-                        // 条件单模式：区分限价单和条件单
-                        if (order.orderType === 'LIMIT') {
-                            // 限价单：价格到达即成交
-                            if ((order.side === 'BUY' && currentPrice <= order.limitPrice) ||
-                                (order.side === 'SELL' && currentPrice >= order.limitPrice)) {
-                                order.status = 'filled';
-                                triggered = true;
-                                removePriceLine('order-' + order.id);
-                                createPosition(order.side, order.limitPrice, order.amount);
-                                addLog(`✅ 限价${order.side === 'BUY' ? '买入' : '卖出'}单成交 @ ${order.limitPrice.toFixed(2)}`, 'success');
-                            }
-                        } else {
-                            // 条件单（STOP）：触发价到达后，以下单价成交
-                            if ((order.side === 'BUY' && currentPrice >= order.stopPrice) ||
-                                (order.side === 'SELL' && currentPrice <= order.stopPrice)) {
-                                order.status = 'filled';
-                                triggered = true;
-                                removePriceLine('order-' + order.id);
-                                createPosition(order.side, order.limitPrice, order.amount);
-                                addLog(`✅ 条件单触发并成交 (触发: ${order.stopPrice.toFixed(2)}, 成交: ${order.limitPrice.toFixed(2)})`, 'success');
-                            }
-                        }
-                        break;
-                        
-                    case 'trailing':
-                        // 追踪止损：分两个阶段 - 等待激活 + 追踪触发
-                        if (order.side === 'BUY') {
-                            // 买入追踪止损
-                            if (!order.activated) {
-                                // 阶段1：等待价格跌到激活价
-                                if (currentPrice <= order.activationPrice) {
-                                    order.activated = true;
-                                    order.lowestPrice = currentPrice;
-                                    // 不需要日志，静默激活
-                                }
-                            } else {
-                                // 阶段2：已激活，追踪最低价
-                                order.lowestPrice = Math.min(order.lowestPrice, currentPrice);
-                                const triggerPrice = order.lowestPrice * (1 + order.callbackRate / 100);
-                                if (currentPrice >= triggerPrice) {
-                                    order.status = 'filled';
-                                    triggered = true;
-                                    removePriceLine('order-' + order.id);
-                                    createPosition(order.side, currentPrice, order.amount);
-                                    addLog(`✅ 追踪止损买入触发 (最低: ${order.lowestPrice.toFixed(2)}, 成交: ${currentPrice.toFixed(2)})`, 'success');
-                                }
-                            }
-                        } else {
-                            // 卖出追踪止损
-                            if (!order.activated) {
-                                // 阶段1：等待价格涨到激活价
-                                if (currentPrice >= order.activationPrice) {
-                                    order.activated = true;
-                                    order.highestPrice = currentPrice;
-                                    // 不需要日志，静默激活
-                                }
-                            } else {
-                                // 阶段2：已激活，追踪最高价
-                                order.highestPrice = Math.max(order.highestPrice, currentPrice);
-                                const triggerPrice = order.highestPrice * (1 - order.callbackRate / 100);
-                                if (currentPrice <= triggerPrice) {
-                                    order.status = 'filled';
-                                    triggered = true;
-                                    removePriceLine('order-' + order.id);
-                                    createPosition(order.side, currentPrice, order.amount);
-                                    addLog(`✅ 追踪止损卖出触发 (最高: ${order.highestPrice.toFixed(2)}, 成交: ${currentPrice.toFixed(2)})`, 'success');
-                                }
-                            }
-                        }
-                        break;
-                }
+        // === Tab切换 ===
+        function openPanel(panelName) {
+            closePanel();
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.panel === panelName);
             });
-            
-            if (triggered) {
-                updateOrdersList();
+
+            if (panelName !== 'chart') {
+                const panel = document.getElementById(panelName + 'Panel');
+                const overlay = document.getElementById('overlay');
+                if (panel) {
+                    panel.classList.add('active');
+                    overlay.classList.add('active');
+                }
             }
         }
 
-        // === 添加日志 ===
-        function addLog(message, type = 'info') {
-            const container = document.getElementById('logsList');
-            const logClass = `log-${type}`;
-            const time = new Date().toLocaleTimeString();
-            
-            const logItem = document.createElement('div');
-            logItem.className = `log-item ${logClass}`;
-            logItem.textContent = `[${time}] ${message}`;
-            
-            container.insertBefore(logItem, container.firstChild);
-            
-            // 保留最新20条日志
-            while (container.children.length > 20) {
-                container.removeChild(container.lastChild);
+        function closePanel() {
+            document.querySelectorAll('.side-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById('overlay').classList.remove('active');
+        }
+
+        // === 菜单功能 ===
+        function toggleMenu() {
+            const menu = document.getElementById('menuPopup');
+            const overlay = document.getElementById('overlay');
+            const isActive = menu.classList.contains('active');
+
+            if (isActive) {
+                menu.classList.remove('active');
+                overlay.classList.remove('active');
+            } else {
+                closePanel();
+                menu.classList.add('active');
+                overlay.classList.add('active');
             }
+        }
+
+        function configAmounts() {
+            const input = prompt(`设置金额快选（逗号分隔）:\n\n当前: ${amountPresets.join(', ')}`, amountPresets.join(','));
+            if (input) {
+                try {
+                    const values = input.split(',').map(v => parseInt(v.trim())).filter(v => v > 0);
+                    if (values.length === 4) {
+                        amountPresets = values;
+                        document.querySelectorAll('.amount-btn').forEach((btn, i) => {
+                            btn.textContent = amountPresets[i] + 'U';
+                        });
+                        localStorage.setItem('kline_amounts', JSON.stringify(amountPresets));
+                        addLog('金额配置已更新', 'success');
+                    } else {
+                        addLog('请输入4个金额值', 'error');
+                    }
+                } catch (e) {
+                    addLog('配置格式错误', 'error');
+                }
+            }
+            toggleMenu();
+        }
+
+        function openGitHub() {
+            window.open('https://github.com/dmatrader/kline-click-trading', '_blank');
+            toggleMenu();
+        }
+
+        function openBinance() {
+            window.open('https://www.binance.com/join?ref=MAPAMBQ1', '_blank');
+            toggleMenu();
         }
 
         // === 绑定事件 ===
@@ -1504,69 +1913,29 @@
                     document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     currentAmount = amountPresets[index];
-                    addLog(`金额设置为 ${currentAmount}U`, 'info');
+                    addLog(`金额: ${currentAmount}U`, 'info');
                 });
             });
-            
-            // 交易所选择器
-            document.getElementById('exchangeSelector').addEventListener('change', switchExchange);
-            
-            // 从localStorage加载金额配置
-            loadAmountPresets();
-        }
-        
-        // === 加载金额配置 ===
-        function loadAmountPresets() {
-            const saved = localStorage.getItem('kline_amount_presets');
+
+            // Tab切换
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openPanel(this.dataset.panel);
+                });
+            });
+
+            // 加载金额配置
+            const saved = localStorage.getItem('kline_amounts');
             if (saved) {
                 try {
                     amountPresets = JSON.parse(saved);
-                    updateAmountButtons();
-                    addLog('已加载自定义金额配置', 'info');
-                } catch (e) {
-                    console.error('加载金额配置失败:', e);
-                }
-            }
-        }
-        
-        // === 更新金额按钮显示 ===
-        function updateAmountButtons() {
-            for (let i = 0; i < 4; i++) {
-                const btn = document.getElementById(`amountBtn${i}`);
-                if (btn) {
-                    btn.textContent = amountPresets[i] + 'U';
-                }
-            }
-        }
-        
-        // === 配置金额 ===
-        function configAmounts() {
-            const input = prompt(
-                `设置金额快选（用逗号分隔，例如: 10,50,200,1000）\n\n当前配置:\n${amountPresets.join(', ')}`,
-                amountPresets.join(',')
-            );
-            
-            if (input === null) return; // 用户取消
-            
-            try {
-                const values = input.split(',').map(v => parseInt(v.trim())).filter(v => v > 0);
-                
-                if (values.length !== 4) {
-                    addLog('❌ 请输入4个金额值', 'error');
-                    return;
-                }
-                
-                amountPresets = values;
-                updateAmountButtons();
-                
-                // 保存到localStorage
-                localStorage.setItem('kline_amount_presets', JSON.stringify(amountPresets));
-                
-                addLog(`✅ 金额配置已更新: ${amountPresets.join(', ')}`, 'success');
-            } catch (e) {
-                addLog('❌ 配置格式错误', 'error');
+                    document.querySelectorAll('.amount-btn').forEach((btn, i) => {
+                        btn.textContent = amountPresets[i] + 'U';
+                    });
+                } catch (e) {}
             }
         }
     </script>
 </body>
 </html>
+

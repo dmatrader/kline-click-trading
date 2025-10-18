@@ -22,21 +22,11 @@
 
 经调研，现有主流K线交易工具均未发现"多模式动态切换"的设计方案。本项目采用CC BY-NC 4.0许可证，代码和设计受著作权保护，GitHub commit时间戳可作为公开发布的原创证明。
 
-### 🎯 下单模式 / Order Modes
+### 🎯 三种下单模式 / Three Order Modes
 
-**桌面版 (3种模式)**：
 1. **普通模式** - 直接挂单或市价成交
 2. **条件单模式** - 设置价格偏移百分比，价格到达触发
 3. **追踪止损模式** - 设置回撤百分比，跟踪价格变化
-
-**移动版 (4种模式)** ⭐ **新增快捷模式**：
-1. **⚡ 快捷模式** - 智能判断买卖方向，一键下单
-   - 点击价 > 当前价 → 自动挂卖单（止盈）
-   - 点击价 < 当前价 → 自动挂买单（低吸）
-   - 符合交易员直觉，极速下单
-2. **普通模式** - 点击后弹窗确认买卖方向
-3. **条件单模式** - 智能判断限价单或条件单
-4. **追踪止损模式** - 设置回撤百分比追踪
 
 ## 📖 项目介绍 / Project Description
 
@@ -48,15 +38,12 @@
 
 ## 🚀 快速体验 / Quick Experience
 
-**桌面版 Desktop**: [https://dmatrader.github.io/kline-click-trading/](https://dmatrader.github.io/kline-click-trading/)
+**[在线演示 / Live Demo](https://dmatrader.github.io/kline-click-trading/)**
 
-**移动版 Mobile**: [https://dmatrader.github.io/kline-click-trading/index-mobile.html](https://dmatrader.github.io/kline-click-trading/index-mobile.html) ⭐ **推荐手机访问**
-
-**本地运行**: 直接用浏览器打开 `index.html` (桌面版) 或 `index-mobile.html` (移动版) 文件即可体验
+**本地运行**: 直接用浏览器打开 `index.html` 文件即可体验
 
 ## ✨ 功能特性 / Features
 
-### 桌面版特性 / Desktop Features
 - 📊 **实时K线数据** - WebSocket实时更新K线图，价格变动即时响应
 - 🌐 **多交易所支持** - 支持币安/OKX/Bitget，国内外用户均可使用
 - 🔄 **三种下单模式** - 普通/条件单/追踪止损，一键切换
@@ -68,29 +55,12 @@
 - ✅ **模拟成交** - 自动检测价格触发条件，模拟订单成交和持仓
 - 📝 **操作日志** - 详细记录每笔操作和成交信息
 
-### 移动版特性 / Mobile Features ⭐
-- ⚡ **快捷模式创新** - 智能判断买卖方向，点击即下单（点上方=卖，点下方=买）
-- 📱 **移动优先设计** - 专为触摸屏优化，大按钮、大目标区域
-- 🎯 **丝滑拖动改单** - 60fps专业级体验，使用Pointer Events + 增量渲染
-- 📊 **底部Tab切换** - 持仓/挂单/日志抽屉式面板，信息层级清晰
-- 🔔 **震动反馈** - 下单、成交、改单时的触觉反馈（支持的设备）
-- 🎨 **响应式布局** - 完美适配手机/平板/横竖屏
-- 🚀 **高性能优化** - 增量DOM更新，不卡顿不掉帧
-- 💡 **智能提示** - 首次使用自动提示操作方法
-
 ## 📖 使用说明 / Usage Guide
 
 ### 核心操作方式 / Core Operations
-
-**桌面版 Desktop**：
+**创新交互设计 / Innovative Interaction**：
 - 🖱️ **Left Click = Buy** (左键点击 = 买入)
 - 🖱️ **Right Click = Sell** (右键点击 = 卖出)
-
-**移动版 Mobile** ⭐：
-- 📱 **快捷模式**: 点击上方=卖出，点击下方=买入（智能判断）
-- 📱 **普通模式**: 点击后弹窗确认方向
-- 📱 **长按拖动**: 拖动价格线标签修改订单（60fps流畅）
-- 📱 **震动反馈**: 操作时的触觉反馈
 
 ### 下单模式详解 / Order Modes Explained
 
@@ -194,19 +164,9 @@
 
 ## 🛠️ 技术栈 / Tech Stack
 
-**通用技术**：
-- **LightweightCharts 4.1.1** - 高性能K线图库
-- **WebSocket** - 实时数据推送（币安/OKX）
+- **LightweightCharts** - 高性能K线图库
+- **Binance API** - 实时K线数据
 - **纯HTML/CSS/JS** - 无需服务器，浏览器直接运行
-
-**移动版专用技术** ⭐：
-- **Pointer Events API** - 统一触摸和鼠标事件处理
-- **setPointerCapture()** - 拖动时手指滑出仍能追踪
-- **requestAnimationFrame** - 60fps流畅动画
-- **增量DOM渲染** - 只更新变化部分，不重建
-- **Vibration API** - 触觉反馈（震动）
-- **localStorage** - 保存用户配置
-- **响应式设计** - 完美适配各种屏幕尺寸
 
 ## 📊 数据来源 / Data Source
 
@@ -248,16 +208,10 @@
 
 ```
 git-kline-click-trading/
-├── index.html              # 桌面版（左右键下单）
-├── index-mobile.html       # 移动版（快捷模式+触摸优化）⭐
+├── index.html              # 主文件（完整功能）
 ├── README.md               # 项目说明
 └── screenshot.png          # 项目截图
 ```
-
-**版本选择建议**:
-- 💻 **桌面电脑**: 使用 `index.html`，支持左右键区分买卖
-- 📱 **手机平板**: 使用 `index-mobile.html`，专为触摸屏优化，增加快捷模式
-- 🌐 **在线访问**: 系统会自动根据设备选择合适版本
 
 ## 🚀 快速开始 / Quick Start
 
