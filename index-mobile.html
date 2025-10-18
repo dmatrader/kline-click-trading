@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <!--
-    K线多模式点击下单演示 - 移动端优化版
+    K线多模式点击下单演示 - 移动端优化版 (Hyperliquid)
     
     原创设计 Original Design by: dmatrader
     设计时间 Design Date: 2025年3月 / March 2025
@@ -9,26 +9,27 @@
     GitHub仓库 Repository: https://github.com/dmatrader/kline-click-trading
     
     核心创新 Core Innovation:
-    通过三种下单模式动态切换（普通/条件单/追踪止损），实现在K线图上
-    一键完成复杂订单操作的设计思路。
+    通过四种下单模式动态切换（快捷/普通/条件单/追踪止损），实现在K线图上
+    一键完成复杂订单操作的设计思路。移动端专门优化，支持丝滑拖动改单。
     
-    Through three order modes dynamic switching (Normal/Conditional/Trailing Stop),
+    Through four order modes dynamic switching (Quick/Normal/Conditional/Trailing Stop),
     achieving the design concept of completing complex order operations with one
-    click on the K-line chart.
+    click on the K-line chart. Mobile optimized with smooth drag-to-modify orders.
+    
+    数据源 Data Source: Hyperliquid (全球可访问 / Globally Accessible)
     
     许可证 License: CC BY-NC 4.0 (禁止商用 / Non-Commercial)
     
     联系方式 Contact:
     - 
     - 币安邀请码 Binance: MAPAMBQ1
-    - OKX邀请码: TRADER8
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>K线一键下单演示 - 移动端</title>
+    <title>K线一键下单演示 - Hyperliquid 移动端</title>
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * {
@@ -622,7 +623,7 @@
 <body>
     <div class="header">
         <div style="flex: 1;">
-            <h1>📈 K线一键下单 <span style="font-size: 11px; color: #9ca3b0;">BTC/USDT</span></h1>
+            <h1>📈 K线一键下单 <span style="font-size: 11px; color: #9ca3b0;">BTC-USD (Hyperliquid)</span></h1>
             <p style="font-size: 10px; color: #9ca3b0; margin-top: 2px;">
                 <span id="headerTip">点击K线选择买卖</span>
                 <span style="margin: 0 6px; color: #363c4e;">|</span>
@@ -758,7 +759,6 @@
         <div class="menu-item" onclick="configAmounts()">⚙️ 自定义金额</div>
         <div class="menu-item" onclick="openGitHub()">📖 使用说明</div>
         <div class="menu-item" onclick="openBinance()">💰 币安开户（返佣）</div>
-        <div class="menu-item" onclick="switchExchange()">🔄 切换交易所</div>
         <div class="menu-item" onclick="toggleMenu()">✕ 关闭</div>
     </div>
 
@@ -793,7 +793,7 @@
         let positions = [];
         let orderIdCounter = 1;
         let positionIdCounter = 1;
-        let currentExchange = 'binance';
+        let currentExchange = 'hyperliquid';
         let wsConnection = null;
         let priceLinesMap = new Map();
         let isDesktop = window.innerWidth >= 768;
@@ -801,12 +801,16 @@
         let hasShownDragTip = false; // 是否已显示拖动提示
 
         const API_CONFIG = {
-            binance: {
-                name: '币安',
-                kline: 'https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1m&limit=300',
-                ws: 'wss://fstream.binance.com/ws/btcusdt@kline_1m'
+            hyperliquid: {
+                name: 'Hyperliquid',
+                rest: 'https://api.hyperliquid.xyz/info',
+                ws: 'wss://api.hyperliquid.xyz/ws',
+                coin: 'BTC' // Hyperliquid uses coin name, not pair
             }
         };
+        
+        // 当前使用的交易所
+        currentExchange = 'hyperliquid';
 
         // === 辅助函数：图表坐标换算 ===
         function getChartRect() {
@@ -1641,25 +1645,52 @@
         // === 加载K线数据 ===
         async function loadKlineData() {
             try {
-                const response = await fetch(API_CONFIG.binance.kline);
-                const data = await response.json();
+                addLog('正在加载 Hyperliquid K线数据...', 'info');
+                
+                const now = Date.now();
+                const endTime = now;
+                const startTime = now - (300 * 60 * 1000); // 300分钟前
+                
+                const payload = {
+                    type: 'candleSnapshot',
+                    req: {
+                        coin: API_CONFIG.hyperliquid.coin,
+                        interval: '1m',
+                        startTime: startTime,
+                        endTime: endTime
+                    }
+                };
 
+                const response = await fetch(API_CONFIG.hyperliquid.rest, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (!data || data.length === 0) {
+                    throw new Error('没有返回K线数据');
+                }
+
+                // Hyperliquid 返回格式: [{t: timestamp_ms, o: "67234.0", h: "67300.0", l: "67200.0", c: "67250.0", v: "123.45", n: 100}]
                 const klineData = data.map(item => ({
-                    time: parseInt(item[0]) / 1000,
-                    open: parseFloat(item[1]),
-                    high: parseFloat(item[2]),
-                    low: parseFloat(item[3]),
-                    close: parseFloat(item[4]),
+                    time: parseInt(item.t) / 1000,
+                    open: parseFloat(item.o),
+                    high: parseFloat(item.h),
+                    low: parseFloat(item.l),
+                    close: parseFloat(item.c),
                 }));
 
                 candlestickSeries.setData(klineData);
                 currentPrice = klineData[klineData.length - 1].close;
                 updateCurrentPrice();
 
-                addLog('K线数据加载成功', 'success');
+                addLog('✅ Hyperliquid K线数据加载成功', 'success');
                 startWebSocket();
             } catch (error) {
-                addLog('数据加载失败', 'error');
+                addLog('❌ 数据加载失败: ' + error.message, 'error');
+                console.error('K线加载错误:', error);
             }
         }
 
@@ -1678,32 +1709,88 @@
         // === WebSocket实时更新 ===
         function startWebSocket() {
             try {
-                wsConnection = new WebSocket(API_CONFIG.binance.ws);
+                wsConnection = new WebSocket(API_CONFIG.hyperliquid.ws);
+
+                wsConnection.onopen = () => {
+                    console.log('✅ Hyperliquid WebSocket 已连接');
+                    
+                    // 订阅K线数据
+                    wsConnection.send(JSON.stringify({
+                        method: 'subscribe',
+                        subscription: {
+                            type: 'candle',
+                            coin: API_CONFIG.hyperliquid.coin,
+                            interval: '1m'
+                        }
+                    }));
+                    
+                    // 订阅实时价格（allMids）
+                    wsConnection.send(JSON.stringify({
+                        method: 'subscribe',
+                        subscription: {
+                            type: 'allMids'
+                        }
+                    }));
+                    
+                    addLog('✅ Hyperliquid 实时连接成功', 'success');
+                };
 
                 wsConnection.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.k) {
-                        const candle = {
-                            time: parseInt(data.k.t) / 1000,
-                            open: parseFloat(data.k.o),
-                            high: parseFloat(data.k.h),
-                            low: parseFloat(data.k.l),
-                            close: parseFloat(data.k.c),
-                        };
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        // K线更新
+                        if (data.channel === 'candle' && data.data) {
+                            const item = data.data;
+                            const candle = {
+                                time: parseInt(item.t) / 1000,
+                                open: parseFloat(item.o),
+                                high: parseFloat(item.h),
+                                low: parseFloat(item.l),
+                                close: parseFloat(item.c),
+                            };
 
-                        candlestickSeries.update(candle);
-                        currentPrice = candle.close;
-                        updateCurrentPrice();
+                            candlestickSeries.update(candle);
+                            currentPrice = candle.close;
+                            updateCurrentPrice();
 
-                        updatePositionsList();
-                        ensureAllLabels(); // 更新所有标签（持仓PnL变化）
-                        checkOrderTriggers();
+                            updatePositionsList();
+                            ensureAllLabels();
+                            checkOrderTriggers();
+                        }
+                        
+                        // 实时价格更新（allMids）
+                        else if (data.channel === 'allMids' && data.data) {
+                            const mids = data.data.mids;
+                            if (mids && mids[API_CONFIG.hyperliquid.coin]) {
+                                const price = parseFloat(mids[API_CONFIG.hyperliquid.coin]);
+                                if (price > 0) {
+                                    currentPrice = price;
+                                    updateCurrentPrice();
+                                    updatePositionsList();
+                                    ensureAllLabels();
+                                    checkOrderTriggers();
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('WebSocket 消息处理错误:', error);
                     }
                 };
 
-                addLog('实时更新已启动', 'success');
+                wsConnection.onerror = (error) => {
+                    console.error('WebSocket 错误:', error);
+                    addLog('❌ WebSocket 连接错误', 'error');
+                };
+
+                wsConnection.onclose = () => {
+                    console.log('WebSocket 连接关闭，5秒后重连...');
+                    addLog('⚠️ 连接断开，正在重连...', 'info');
+                    setTimeout(startWebSocket, 5000);
+                };
             } catch (error) {
-                addLog('WebSocket连接失败', 'error');
+                addLog('❌ WebSocket连接失败', 'error');
+                console.error('WebSocket 错误:', error);
             }
         }
 
@@ -1810,11 +1897,6 @@
 
         function openBinance() {
             window.open('https://www.binance.com/join?ref=MAPAMBQ1', '_blank');
-            toggleMenu();
-        }
-
-        function switchExchange() {
-            addLog('当前仅支持币安（演示版）', 'info');
             toggleMenu();
         }
 
