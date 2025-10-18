@@ -7,7 +7,7 @@ echo "📦 准备部署到GitHub Pages..."
 if [ ! -d ".git" ]; then
     echo "❌ 这不是一个Git仓库，请先运行："
     echo "   git init"
-    echo "   git remote add origin https://github.com/你的用户名/kline-click-trading.git"
+    echo "   git remote add origin https://github.com/dmatrader/kline-click-trading.git"
     exit 1
 fi
 
@@ -24,7 +24,7 @@ echo ""
 echo "✅ 部署完成！"
 echo ""
 echo "📱 访问地址："
-echo "   https://你的用户名.github.io/kline-click-trading/index-mobile.html"
+echo "   https://dmatrader.github.io/kline-click-trading/index-mobile.html"
 echo ""
 echo "⚠️  记得在GitHub仓库设置中启用GitHub Pages："
 echo "   Settings → Pages → Source → main branch"
