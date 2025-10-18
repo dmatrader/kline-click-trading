@@ -1403,8 +1403,9 @@
 
             const text = (() => {
                 if (type === 'order') {
-                    const modeTag = data.mode === 'conditional' ? '[条件]' :
-                                  data.mode === 'trailing'   ? '[追踪]' : '';
+                    // 只有真正的条件单（STOP类型）才显示[条件]，限价单不显示
+                    const modeTag = (data.mode === 'conditional' && data.orderType === 'STOP') ? '[条件]' :
+                                  data.mode === 'trailing' ? (data.activated ? '[追踪✓]' : '[追踪○]') : '';
                     return `${modeTag}${data.side === 'BUY' ? '买' : '卖'} ${price.toFixed(2)}`;
                 } else {
                     const pnl = data.pnl || 0;
@@ -1494,9 +1495,9 @@
                     const y = priceToY(newPrice);
                     if (y != null) {
                         label.style.top = (rect.top + y - 23) + 'px';
-                        // 同步文本
-                        const modeTag = orderData.mode === 'conditional' ? '[条件]' :
-                                      orderData.mode === 'trailing'   ? '[追踪]' : '';
+                        // 同步文本 - 只有STOP类型的条件单才显示[条件]
+                        const modeTag = (orderData.mode === 'conditional' && orderData.orderType === 'STOP') ? '[条件]' :
+                                      orderData.mode === 'trailing' ? (orderData.activated ? '[追踪✓]' : '[追踪○]') : '';
                         const textEl = label.querySelector('.pll-text');
                         if (textEl) {
                             textEl.textContent = `${modeTag}${orderData.side === 'BUY' ? '买' : '卖'} ${newPrice.toFixed(2)}`;
